@@ -48,6 +48,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app_state: &mut Ap
                     KeyCode::Right => app_state.ui_state.cursor_move_right(),
                     KeyCode::Down => app_state.ui_state.cursor_move_down(),
                     KeyCode::Up => app_state.ui_state.cursor_move_up(),
+                    KeyCode::Backspace => app_state.remove_previous_character(),
                     _ => {}
                 }
             }
