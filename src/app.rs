@@ -7,28 +7,30 @@ use std::fs;
 use ratatui::{
     backend::{CrosstermBackend}, layout::{Constraint, Layout}, widgets::Block, Frame, Terminal
 };
-use crossterm::{event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind}, terminal};
+use crossterm::{event::{self, Event, KeyCode, KeyEventKind}};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::execute;
 
-use crate::app_state::AppState;
+use crate::{app_state::AppState};
 use crate::editor::render_editor;
 use crate::file_tree::render_file_tree;
 
 pub fn start_tui_editor() -> io::Result<()> {
     let (file_content, directory_path) = get_file_from_args();
-    let app_state = AppState::new(file_content, directory_path);
+    let mut app_state = AppState::new(file_content, directory_path);
 
     let mut terminal = setup_terminal().expect("Failed to set up terminal");
-    let app_result = run(&mut terminal, &app_state);
+    let app_result = run(&mut terminal, &mut app_state);
 
     ratatui::restore();
     return app_result;
 }
 
-fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app_state: &AppState) -> io::Result<()> {
+fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app_state: &mut AppState) -> io::Result<()> {
     loop {
         terminal.draw(|frame| render(frame, app_state))?;
+
+        app_state.ui_state.show_cursor_if_needed();
 
         match event::read()? {
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
@@ -37,7 +39,11 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app_state: &AppSta
                     KeyCode::Char('q') => {
                         restore_terminal(terminal).expect("Could not shut down the app gracefully, terminal might not work properly");
                         return Ok(());
-                    },
+                    }
+                    KeyCode::Left => app_state.ui_state.cursor_move_left(),
+                    KeyCode::Right => app_state.ui_state.cursor_move_right(),
+                    KeyCode::Down => app_state.ui_state.cursor_move_down(),
+                    KeyCode::Up => app_state.ui_state.cursor_move_up(),
                     _ => {}
                 }
             }
@@ -49,7 +55,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app_state: &AppSta
 fn setup_terminal() -> Result<Terminal<CrosstermBackend<io::Stdout>>, Box<dyn std::error::Error>> {
     let mut stdout = io::stdout();
     enable_raw_mode()?;
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let terminal = Terminal::new(backend)?;
     Ok(terminal)
@@ -59,7 +65,7 @@ fn setup_terminal() -> Result<Terminal<CrosstermBackend<io::Stdout>>, Box<dyn st
 /// terminal will be unusable
 fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<(), Box<dyn std::error::Error>> {
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
     Ok(())
 } 
@@ -67,7 +73,7 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Re
 /// Render general application layout without any specific details.
 /// For now the layout is fixed, but the plan is to allow full customization
 /// on what is shown and the position.
-fn render(frame: &mut Frame, app_state: &AppState) {
+fn render(frame: &mut Frame, app_state: &mut AppState) {
     let vertical = Layout::vertical([Constraint::Fill(1), Constraint::Length(3)]);
     let [main_area, status_area] = vertical.areas(frame.area());
 
