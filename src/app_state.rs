@@ -31,21 +31,24 @@ impl FileTreeEntry {
 }
 
 pub struct UIState {
-    cursor_x: u16,
-    cursor_y: u16,
+    cursor_line: u16,
+    cursor_column: u16,
     editor_offset_x: u16,
     editor_offset_y: u16,
-    should_show_cursor: bool
+    should_show_cursor: bool,
+    prefix_len: u16,
 }
 
 impl UIState {
-    pub fn new() -> Self {
+    pub fn new(prefix_len: u16) -> Self {
         UIState {
-            cursor_x: 0,
-            cursor_y: 0,
+            cursor_line: 1,
+            cursor_column: 1,
             editor_offset_x: 0,
             editor_offset_y: 0,
-            should_show_cursor: false
+            should_show_cursor: false,
+            // 1 character at the beginning, one space at the end
+            prefix_len: prefix_len + 2
         }
     }
 
@@ -56,17 +59,17 @@ impl UIState {
         if !self.should_show_cursor {
             self.editor_offset_x = x;
             self.editor_offset_y = y;
-            self.cursor_x = self.editor_offset_x + 1;
-            self.cursor_y = self.editor_offset_y + 1;
             self.should_show_cursor = true;
         }
     }
 
     pub fn show_cursor_if_needed(&mut self) {
         if self.should_show_cursor {
+            let x = self.cursor_column + self.editor_offset_x + self.prefix_len;
+            let y = self.cursor_line + self.editor_offset_y;
             let result = execute!(
                 io::stdout(),
-                MoveTo(self.cursor_x, self.cursor_y),
+                MoveTo(x, y),
                 SetCursorStyle::SteadyBlock,
                 Show);
 
@@ -82,34 +85,28 @@ impl UIState {
     }
 
     pub fn cursor_move_left(&mut self) {
-        if self.should_show_cursor && self.cursor_x > 0 {
-            let new_value = self.cursor_x - 1;
-
-            if new_value > self.editor_offset_x {
-                self.cursor_x = new_value;
-            }
+        if self.should_show_cursor && self.cursor_column > 1 {
+            let new_value = self.cursor_column - 1;
+            self.cursor_column = new_value;
         }
     }
 
     pub fn cursor_move_right(&mut self) {
         if self.should_show_cursor {
-            self.cursor_x = self.cursor_x + 1;
+            self.cursor_column = self.cursor_column + 1;
         }
     }
 
     pub fn cursor_move_up(&mut self) {
-        if self.should_show_cursor && self.cursor_y > 0 {
-            let new_value = self.cursor_y - 1;
-
-            if new_value > self.editor_offset_y {
-                self.cursor_y = new_value;
-            }
+        if self.should_show_cursor && self.cursor_line > 1 {
+            let new_value = self.cursor_line - 1;
+            self.cursor_line = new_value;
         }
     }
 
     pub fn cursor_move_down(&mut self) {
         if self.should_show_cursor {
-            self.cursor_y = self.cursor_y + 1;
+            self.cursor_line = self.cursor_line + 1;
         }
     }
 }
@@ -120,17 +117,20 @@ pub struct AppState {
     /// based on the provided path
     pub working_directory: PathBuf,
     pub file_tree: HashMap<PathBuf, Vec<FileTreeEntry>>,
-    pub file_content: String,
+    pub lines: Vec<Vec<char>>,
     pub ui_state: UIState,
 }
 
 impl AppState {
     pub fn new(file_content: String, working_directory: PathBuf) -> AppState {
+        let lines_number = file_content.lines().count();
+        let lines: Vec<Vec<char>> = file_content.lines().map(|s| s.chars().collect()).collect();
         let mut app_state: AppState = AppState {
             working_directory,
             file_tree: HashMap::new(),
-            file_content,
-            ui_state: UIState::new()
+            lines,
+            // this is extremely safe, it needs to have 65535 digits to overflow
+            ui_state: UIState::new(lines_number.to_string().len() as u16)
         };
 
         app_state.read_directory(app_state.working_directory.clone());
@@ -148,5 +148,22 @@ impl AppState {
             .collect();
 
         self.file_tree.insert(path, values);
+    }
+
+    pub fn insert_character(&mut self, character: char) {
+        let result = self.lines.get_mut((self.ui_state.cursor_line - 1) as usize);
+
+        match result {
+            Some(line) => {
+                let index = (self.ui_state.cursor_column - 1) as usize;
+                if index <= line.len() {
+                    line.insert(index, character);
+                    self.ui_state.cursor_move_right();
+                }
+            }
+            None => {
+                // ????
+            }
+        }
     }
 }

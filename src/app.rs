@@ -36,9 +36,13 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app_state: &mut Ap
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 match key_event.code {
                     // TODO: add ctrl/cmd modifier
-                    KeyCode::Char('q') => {
-                        restore_terminal(terminal).expect("Could not shut down the app gracefully, terminal might not work properly");
-                        return Ok(());
+                    KeyCode::Char(character) => {
+                        if character == 'q' {
+                            restore_terminal(terminal).expect("Could not shut down the app gracefully, terminal might not work properly");
+                            return Ok(());
+                        }
+
+                        app_state.insert_character(character);
                     }
                     KeyCode::Left => app_state.ui_state.cursor_move_left(),
                     KeyCode::Right => app_state.ui_state.cursor_move_right(),
