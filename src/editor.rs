@@ -8,7 +8,9 @@ use ratatui::{
 
 use crate::app_state::{AppState};
 
-pub fn render_editor(frame: &mut Frame, area: Rect, app_state: &AppState) {
+pub fn render_editor(frame: &mut Frame, area: Rect, app_state: &mut AppState) {
+    app_state.ui_state.set_editor_offset(area.x, area.y);
+
     let lines_number = app_state.file_content.lines().count();
     let text: Vec<Line> = app_state.file_content
         .lines()
