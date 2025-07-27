@@ -11,11 +11,11 @@ use crate::app_state::{AppState};
 pub fn render_editor(frame: &mut Frame, area: Rect, app_state: &mut AppState) {
     app_state.ui_state.set_editor_offset(area.x, area.y);
 
-    let lines_number = app_state.file_content.lines().count();
-    let text: Vec<Line> = app_state.file_content
-        .lines()
+    let lines_number = app_state.lines.len();
+    let text: Vec<Line> = app_state.lines
+        .iter()
         .enumerate()
-        .map(|(i, line)| generate_code_line(line, i, lines_number))
+        .map(|(i, line)| generate_code_line(line.iter().collect::<String>(), i, lines_number))
         .collect();
 
     let block = Block::bordered().title("Editor");
@@ -28,7 +28,7 @@ pub fn render_editor(frame: &mut Frame, area: Rect, app_state: &mut AppState) {
     frame.render_widget(text_widget, area);
 }
 
-pub fn generate_code_line(line: &str, current_line: usize, lines_number: usize) -> Line<'_> {
+pub fn generate_code_line(line: String, current_line: usize, lines_number: usize) -> Line<'static> {
     let current_line_width = current_line.to_string().len();
     let lines_number_width = lines_number.to_string().len();
 
