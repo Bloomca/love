@@ -166,4 +166,27 @@ impl AppState {
             }
         }
     }
+
+    pub fn remove_previous_character(&mut self) {
+        let index = (self.ui_state.cursor_column - 1) as usize;
+
+        // if we are at the beginning of the line, nothing to delete
+        if index == 0 {
+            return;
+        }
+
+        let result = self.lines.get_mut((self.ui_state.cursor_line - 1) as usize);
+
+        match result {
+            Some(line) => {
+                if index <= line.len() {
+                    line.remove(index - 1);
+                    self.ui_state.cursor_move_left();
+                }
+            }
+            None => {
+                // ????
+            }
+        }
+    }
 }
