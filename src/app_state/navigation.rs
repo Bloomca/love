@@ -3,6 +3,8 @@ use super::ui::UIState;
 impl UIState {
     pub fn cursor_move_left(&mut self) {
         if self.should_show_cursor {
+            self.vertical_offset_target = 0;
+
             if self.cursor_column == 1 {
                 if self.cursor_line == 1 {
                     // we already at the beginning of the file, nothing to do
@@ -22,6 +24,8 @@ impl UIState {
 
     pub fn cursor_move_right(&mut self) {
         if self.should_show_cursor {
+            self.vertical_offset_target = 0;
+
             let line_len = self.get_line_len(self.cursor_line - 1);
             if self.cursor_column > line_len {
                 if self.cursor_line >= self.lines.len() as u16 {
@@ -38,15 +42,47 @@ impl UIState {
     }
 
     pub fn cursor_move_up(&mut self) {
-        if self.should_show_cursor && self.cursor_line > 1 {
-            let new_value = self.cursor_line - 1;
-            self.cursor_line = new_value;
+        if self.should_show_cursor {
+            if self.cursor_line == 1 {
+                if self.vertical_offset_target == 0 {
+                    self.vertical_offset_target = self.cursor_column;
+                }
+                self.cursor_column = 1;
+            } else {
+                self.cursor_line -= 1;
+                self.adjust_cursor_column_after_vertical_nav();
+            }
         }
     }
 
     pub fn cursor_move_down(&mut self) {
         if self.should_show_cursor {
-            self.cursor_line += 1;
+            if self.cursor_line == self.lines.len() as u16 {
+                if self.vertical_offset_target == 0 {
+                    self.vertical_offset_target = self.cursor_column;
+                }
+
+                let line_len = self.get_line_len(self.cursor_line - 1);
+                self.cursor_column = line_len + 1;
+            } else {
+                self.cursor_line += 1;
+                self.adjust_cursor_column_after_vertical_nav();
+            }
+        }
+    }
+
+    fn adjust_cursor_column_after_vertical_nav(&mut self) {
+        // if it is not 0, it means we were pressing up/down before
+        if self.vertical_offset_target == 0 {
+            self.vertical_offset_target = self.cursor_column;
+        }
+
+        let line_len = self.get_line_len(self.cursor_line - 1);
+
+        if self.vertical_offset_target < line_len {
+            self.cursor_column = self.vertical_offset_target;
+        } else {
+            self.cursor_column = line_len + 1;
         }
     }
 
@@ -179,6 +215,49 @@ mod tests {
         ui_state.cursor_move_left();
 
         assert_eq!(ui_state.cursor_column, 6);
+        assert_eq!(ui_state.cursor_line, 1);
+    }
+
+    #[test]
+    fn move_up_down_handles_end_of_file() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0);
+
+        ui_state.cursor_move_right();
+        ui_state.cursor_move_right();
+
+        assert_eq!(ui_state.cursor_column, 3);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        ui_state.cursor_move_up();
+
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        ui_state.cursor_move_down();
+
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 2);
+
+        ui_state.cursor_move_down();
+
+        assert_eq!(ui_state.cursor_column, 3);
+        assert_eq!(ui_state.cursor_line, 3);
+
+        ui_state.cursor_move_down();
+
+        assert_eq!(ui_state.cursor_column, 12);
+        assert_eq!(ui_state.cursor_line, 3);
+
+        ui_state.cursor_move_up();
+        ui_state.cursor_move_up();
+
+        assert_eq!(ui_state.cursor_column, 3);
         assert_eq!(ui_state.cursor_line, 1);
     }
 }

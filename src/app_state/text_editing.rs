@@ -2,6 +2,8 @@ use super::ui::UIState;
 
 impl UIState {
     pub fn insert_character(&mut self, character: char) {
+        self.vertical_offset_target = 0;
+
         let result = self.lines.get_mut((self.cursor_line - 1) as usize);
 
         match result {
@@ -19,6 +21,8 @@ impl UIState {
     }
 
     pub fn remove_previous_character(&mut self) {
+        self.vertical_offset_target = 0;
+
         let index = (self.cursor_column - 1) as usize;
 
         let result = self.lines.get_mut((self.cursor_line - 1) as usize);
@@ -40,6 +44,8 @@ impl UIState {
 
     // if `delete` is pressed, we delete the next character
     pub fn remove_next_character(&mut self) {
+        self.vertical_offset_target = 0;
+
         let index = (self.cursor_column - 1) as usize;
 
         let result = self.lines.get_mut((self.cursor_line - 1) as usize);
