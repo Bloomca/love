@@ -39,7 +39,7 @@ fn generate_code_line(line: String, current_line: usize, lines_number: usize) ->
 
     Line::from(vec![
         Span::styled(
-            format!("|{}{} ", padding_str, current_line),
+            format!("|{padding_str}{current_line} "),
             Style::new().dark_gray(),
         ),
         Span::raw(line),

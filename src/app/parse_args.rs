@@ -20,5 +20,5 @@ pub(super) fn get_file_from_args() -> (String, PathBuf) {
 
     canonical_path.pop();
 
-    return (file_string, canonical_path);
+    (file_string, canonical_path)
 }

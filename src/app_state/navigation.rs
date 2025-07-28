@@ -10,7 +10,7 @@ impl UIState {
 
     pub fn cursor_move_right(&mut self) {
         if self.should_show_cursor {
-            self.cursor_column = self.cursor_column + 1;
+            self.cursor_column += 1;
         }
     }
 
@@ -23,7 +23,7 @@ impl UIState {
 
     pub fn cursor_move_down(&mut self) {
         if self.should_show_cursor {
-            self.cursor_line = self.cursor_line + 1;
+            self.cursor_line += 1;
         }
     }
 }

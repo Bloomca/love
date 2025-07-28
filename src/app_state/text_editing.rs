@@ -27,7 +27,6 @@ impl UIState {
             Some(line) => {
                 if index == 0 {
                     // we need to prepend current line to the previous one
-                    return;
                 } else if index <= line.len() {
                     line.remove(index - 1);
                     self.cursor_move_left();
@@ -50,7 +49,7 @@ impl UIState {
                 let line_len = line.len();
                 if index == line_len {
                     // we need to get the next line and append it to the current line
-                } else if line_len > 0 && index <= line_len - 1 {
+                } else if line_len > 0 && index < line_len {
                     line.remove(index);
                 }
             }

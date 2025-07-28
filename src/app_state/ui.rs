@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-use std::fs;
 use std::io;
 use std::path::PathBuf;
 
@@ -14,8 +12,8 @@ pub struct FileEntry {
 
 pub struct DirEntry {
     pub path: PathBuf,
-    file_tree: HashMap<PathBuf, Vec<FileTreeEntry>>,
-    expanded: bool,
+    // file_tree: HashMap<PathBuf, Vec<FileTreeEntry>>,
+    // expanded: bool,
 }
 
 pub enum FileTreeEntry {
@@ -28,8 +26,8 @@ impl FileTreeEntry {
         if path.is_dir() {
             FileTreeEntry::Dir(DirEntry {
                 path,
-                expanded: false,
-                file_tree: HashMap::new(),
+                // expanded: false,
+                // file_tree: HashMap::new(),
             })
         } else {
             FileTreeEntry::File(FileEntry { path })
