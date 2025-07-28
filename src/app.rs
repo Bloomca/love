@@ -1,14 +1,14 @@
-mod terminal_setup;
-mod run_event_loop;
-mod render_app_layout;
 mod parse_args;
+mod render_app_layout;
+mod run_event_loop;
+mod terminal_setup;
 
 use std::io;
 
-use crate::{app_state::AppState};
-use terminal_setup::setup_terminal;
-use run_event_loop::run;
+use crate::app_state::AppState;
 use parse_args::get_file_from_args;
+use run_event_loop::run;
+use terminal_setup::setup_terminal;
 
 pub fn start_tui_editor() -> io::Result<()> {
     let (file_content, directory_path) = get_file_from_args();
@@ -23,4 +23,3 @@ pub fn start_tui_editor() -> io::Result<()> {
     ratatui::restore();
     return app_result;
 }
-

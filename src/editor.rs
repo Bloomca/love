@@ -1,18 +1,20 @@
 use ratatui::{
     Frame,
-    layout::{Rect, Alignment},
+    layout::{Alignment, Rect},
     style::{Style, Stylize},
+    text::{Line, Span},
     widgets::{Block, Paragraph, Wrap},
-    text::{Line, Span}
 };
 
-use crate::app_state::{AppState};
+use crate::app_state::AppState;
 
 pub fn render_editor(frame: &mut Frame, area: Rect, app_state: &mut AppState) {
     app_state.ui_state.set_editor_offset(area.x, area.y);
 
     let lines_number = app_state.ui_state.lines.len();
-    let text: Vec<Line> = app_state.ui_state.lines
+    let text: Vec<Line> = app_state
+        .ui_state
+        .lines
         .iter()
         .enumerate()
         .map(|(i, line)| generate_code_line(line.iter().collect::<String>(), i, lines_number))
@@ -38,8 +40,8 @@ fn generate_code_line(line: String, current_line: usize, lines_number: usize) ->
     Line::from(vec![
         Span::styled(
             format!("|{}{} ", padding_str, current_line),
-            Style::new().dark_gray()
+            Style::new().dark_gray(),
         ),
-        Span::raw(line)
+        Span::raw(line),
     ])
 }

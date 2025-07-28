@@ -1,7 +1,7 @@
-use std::process::exit;
 use std::env;
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
+use std::process::exit;
 
 /// Parse passed parameters to the CLI command. It can be either a folder
 /// or a file (although folder is not supported right now).

@@ -45,7 +45,7 @@ mod tests {
         ui_state.cursor_move_left();
         ui_state.cursor_move_left();
         ui_state.cursor_move_left();
-        
+
         ui_state.cursor_move_up();
         ui_state.cursor_move_up();
         ui_state.cursor_move_up();
