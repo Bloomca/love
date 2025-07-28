@@ -28,7 +28,7 @@ pub fn render_editor(frame: &mut Frame, area: Rect, app_state: &mut AppState) {
     frame.render_widget(text_widget, area);
 }
 
-pub fn generate_code_line(line: String, current_line: usize, lines_number: usize) -> Line<'static> {
+fn generate_code_line(line: String, current_line: usize, lines_number: usize) -> Line<'static> {
     let current_line_width = current_line.to_string().len();
     let lines_number_width = lines_number.to_string().len();
 
