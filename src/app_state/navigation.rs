@@ -24,9 +24,13 @@ impl UIState {
         if self.should_show_cursor {
             let line_len = self.get_line_len(self.cursor_line - 1);
             if self.cursor_column > line_len {
-                // need to move to the next line
-                self.cursor_column = 1;
-                self.cursor_line += 1;
+                if self.cursor_line >= self.lines.len() as u16 {
+                    // we are on the last line, do nothing
+                } else {
+                    // need to move to the next line
+                    self.cursor_column = 1;
+                    self.cursor_line += 1;
+                }
             } else {
                 self.cursor_column += 1;
             }
@@ -138,6 +142,14 @@ mod tests {
         ui_state.cursor_move_right();
 
         assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 3);
+
+        // there is no lines after this one
+        for _ in 0..15 {
+            ui_state.cursor_move_right();
+        }
+
+        assert_eq!(ui_state.cursor_column, 12);
         assert_eq!(ui_state.cursor_line, 3);
     }
 
