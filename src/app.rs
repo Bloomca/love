@@ -21,5 +21,5 @@ pub fn start_tui_editor() -> io::Result<()> {
     let app_result = run(&mut terminal, &mut app_state);
 
     ratatui::restore();
-    return app_result;
+    app_result
 }
