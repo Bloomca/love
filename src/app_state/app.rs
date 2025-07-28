@@ -10,7 +10,6 @@ pub struct AppState {
     /// based on the provided path
     pub working_directory: PathBuf,
     pub file_tree: HashMap<PathBuf, Vec<FileTreeEntry>>,
-    pub lines: Vec<Vec<char>>,
     pub ui_state: UIState,
 }
 
@@ -22,9 +21,8 @@ impl AppState {
         AppState {
             working_directory,
             file_tree: HashMap::new(),
-            lines,
             // this is extremely safe, it needs to have 65535 digits to overflow
-            ui_state: UIState::new(lines_number.to_string().len() as u16)
+            ui_state: UIState::new(lines_number.to_string().len() as u16, lines)
         }
     }
 

@@ -1,15 +1,15 @@
-use super::app::AppState;
+use super::ui::UIState;
 
-impl AppState {
+impl UIState {
     pub fn insert_character(&mut self, character: char) {
-        let result = self.lines.get_mut((self.ui_state.cursor_line - 1) as usize);
+        let result = self.lines.get_mut((self.cursor_line - 1) as usize);
 
         match result {
             Some(line) => {
-                let index = (self.ui_state.cursor_column - 1) as usize;
+                let index = (self.cursor_column - 1) as usize;
                 if index <= line.len() {
                     line.insert(index, character);
-                    self.ui_state.cursor_move_right();
+                    self.cursor_move_right();
                 }
             }
             None => {
@@ -19,9 +19,9 @@ impl AppState {
     }
 
     pub fn remove_previous_character(&mut self) {
-        let index = (self.ui_state.cursor_column - 1) as usize;
+        let index = (self.cursor_column - 1) as usize;
 
-        let result = self.lines.get_mut((self.ui_state.cursor_line - 1) as usize);
+        let result = self.lines.get_mut((self.cursor_line - 1) as usize);
 
         match result {
             Some(line) => {
@@ -30,7 +30,7 @@ impl AppState {
                     return;
                 } else if index <= line.len() {
                     line.remove(index - 1);
-                    self.ui_state.cursor_move_left();
+                    self.cursor_move_left();
                 }
             }
             None => {
@@ -41,9 +41,9 @@ impl AppState {
 
     // if `delete` is pressed, we delete the next character
     pub fn remove_next_character(&mut self) {
-        let index = (self.ui_state.cursor_column - 1) as usize;
+        let index = (self.cursor_column - 1) as usize;
 
-        let result = self.lines.get_mut((self.ui_state.cursor_line - 1) as usize);
+        let result = self.lines.get_mut((self.cursor_line - 1) as usize);
 
         match result {
             Some(line) => {
@@ -58,5 +58,72 @@ impl AppState {
                 // ????
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inserts_new_character_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0);
+
+        for _ in 0..6 {
+            ui_state.cursor_move_right();
+        }
+
+        ui_state.insert_character('m');
+        ui_state.insert_character('y');
+        ui_state.insert_character(' ');
+
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "Hello my world!")
+    }
+
+    #[test]
+    fn deletes_previous_character_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0);
+
+        for _ in 0..6 {
+            ui_state.cursor_move_right();
+        }
+
+        // intentionally delete more than 6 characters
+        for _ in 0..15 {
+            ui_state.remove_previous_character();
+        }
+
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "world!");
+        assert_eq!(ui_state.cursor_column, 1);
+    }
+
+    #[test]
+    fn deletes_next_character_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0);
+
+        for _ in 0..6 {
+            ui_state.remove_next_character();
+        }
+
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "world!");
+        assert_eq!(ui_state.cursor_column, 1);
     }
 }

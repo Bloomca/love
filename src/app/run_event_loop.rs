@@ -23,14 +23,14 @@ pub(super) fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app_sta
                             return Ok(());
                         }
 
-                        app_state.insert_character(character);
+                        app_state.ui_state.insert_character(character);
                     }
                     KeyCode::Left => app_state.ui_state.cursor_move_left(),
                     KeyCode::Right => app_state.ui_state.cursor_move_right(),
                     KeyCode::Down => app_state.ui_state.cursor_move_down(),
                     KeyCode::Up => app_state.ui_state.cursor_move_up(),
-                    KeyCode::Backspace => app_state.remove_previous_character(),
-                    KeyCode::Delete => app_state.remove_next_character(),
+                    KeyCode::Backspace => app_state.ui_state.remove_previous_character(),
+                    KeyCode::Delete => app_state.ui_state.remove_next_character(),
                     _ => {}
                 }
             }

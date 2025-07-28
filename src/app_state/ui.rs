@@ -33,17 +33,19 @@ impl FileTreeEntry {
 pub struct UIState {
     pub cursor_line: u16,
     pub cursor_column: u16,
+    pub lines: Vec<Vec<char>>,
     editor_offset_x: u16,
     editor_offset_y: u16,
-    should_show_cursor: bool,
+    pub(super) should_show_cursor: bool,
     prefix_len: u16,
 }
 
 impl UIState {
-    pub fn new(prefix_len: u16) -> Self {
+    pub fn new(prefix_len: u16, lines: Vec<Vec<char>>,) -> Self {
         UIState {
             cursor_line: 1,
             cursor_column: 1,
+            lines,
             editor_offset_x: 0,
             editor_offset_y: 0,
             should_show_cursor: false,
@@ -81,32 +83,6 @@ impl UIState {
                     // TODO: handle somehow
                 }
             }
-        }
-    }
-
-    pub fn cursor_move_left(&mut self) {
-        if self.should_show_cursor && self.cursor_column > 1 {
-            let new_value = self.cursor_column - 1;
-            self.cursor_column = new_value;
-        }
-    }
-
-    pub fn cursor_move_right(&mut self) {
-        if self.should_show_cursor {
-            self.cursor_column = self.cursor_column + 1;
-        }
-    }
-
-    pub fn cursor_move_up(&mut self) {
-        if self.should_show_cursor && self.cursor_line > 1 {
-            let new_value = self.cursor_line - 1;
-            self.cursor_line = new_value;
-        }
-    }
-
-    pub fn cursor_move_down(&mut self) {
-        if self.should_show_cursor {
-            self.cursor_line = self.cursor_line + 1;
         }
     }
 }
