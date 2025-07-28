@@ -1,6 +1,6 @@
 use std::io;
 
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::{Terminal, backend::CrosstermBackend};
 
 use super::render_app_layout::render;
@@ -19,15 +19,11 @@ pub(super) fn run(
         match event::read()? {
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 match key_event.code {
-                    // TODO: add ctrl/cmd modifier
-                    KeyCode::Char(character) => {
-                        if character == 'q' {
-                            restore_terminal(terminal).expect("Could not shut down the app gracefully, terminal might not work properly");
-                            return Ok(());
-                        }
-
-                        app_state.ui_state.insert_character(character);
+                    KeyCode::Char('q') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        restore_terminal(terminal).expect("Could not shut down the app gracefully, terminal might not work properly");
+                        return Ok(());
                     }
+                    KeyCode::Char(character) => app_state.ui_state.insert_character(character),
                     KeyCode::Left => app_state.ui_state.cursor_move_left(),
                     KeyCode::Right => app_state.ui_state.cursor_move_right(),
                     KeyCode::Down => app_state.ui_state.cursor_move_down(),
