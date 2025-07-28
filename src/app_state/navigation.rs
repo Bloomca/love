@@ -86,7 +86,7 @@ impl UIState {
         }
     }
 
-    fn get_line_len(&self, index: u16) -> u16 {
+    pub(super) fn get_line_len(&self, index: u16) -> u16 {
         // this will break if index is higher than 65535, which is not impossible
         // TODO: switch to `usize` everywhere, and only use `u16` for actual terminal
         match self.lines.get(index as usize) {
