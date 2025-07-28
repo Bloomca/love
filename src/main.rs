@@ -1,9 +1,9 @@
 use std::io;
 
-mod editor;
-mod app_state;
-mod file_tree;
 mod app;
+mod app_state;
+mod editor;
+mod file_tree;
 
 use app::start_tui_editor;
 
