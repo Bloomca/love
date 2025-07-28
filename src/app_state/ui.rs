@@ -41,8 +41,23 @@ pub struct UIState {
     pub lines: Vec<Vec<char>>,
     editor_offset_x: u16,
     editor_offset_y: u16,
+
+    /// There are multiple widgets which can be focused, plus we might
+    /// not even have a valid editor open (e.g. if all files are closed)
     pub(super) should_show_cursor: bool,
+
+    /// Each line is prefixed with the line number. To have a consistent
+    /// prefix width, we take the highest number, take number of digits,
+    /// and add `|` symbol and a space afterwards.
     prefix_len: u16,
+
+    /// When we navigate using up/down directions, we ideally want to stay
+    /// on the same column vertically. It is not always possible, because
+    /// the next line might have fewer characters. But the line after might
+    /// have enough! So in order to preserve that, we need to store the
+    /// "target" column. It is invalidated the moment we navigate left or right,
+    /// or insert a new character.
+    pub(super) vertical_offset_target: u16,
 }
 
 impl UIState {
@@ -56,6 +71,7 @@ impl UIState {
             should_show_cursor: false,
             // 1 character at the beginning, one space at the end
             prefix_len: prefix_len + 2,
+            vertical_offset_target: 0,
         }
     }
 
