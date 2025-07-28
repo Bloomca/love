@@ -2,15 +2,34 @@ use super::ui::UIState;
 
 impl UIState {
     pub fn cursor_move_left(&mut self) {
-        if self.should_show_cursor && self.cursor_column > 1 {
-            let new_value = self.cursor_column - 1;
-            self.cursor_column = new_value;
+        if self.should_show_cursor {
+            if self.cursor_column == 1 {
+                if self.cursor_line == 1 {
+                    // we already at the beginning of the file, nothing to do
+                } else {
+                    let new_cursor_line = self.cursor_line - 1;
+                    self.cursor_line = new_cursor_line;
+
+                    let line_len = self.get_line_len(new_cursor_line - 1);
+                    self.cursor_column = line_len + 1;
+                }
+            } else {
+                let new_value = self.cursor_column - 1;
+                self.cursor_column = new_value;
+            }
         }
     }
 
     pub fn cursor_move_right(&mut self) {
         if self.should_show_cursor {
-            self.cursor_column += 1;
+            let line_len = self.get_line_len(self.cursor_line - 1);
+            if self.cursor_column > line_len {
+                // need to move to the next line
+                self.cursor_column = 1;
+                self.cursor_line += 1;
+            } else {
+                self.cursor_column += 1;
+            }
         }
     }
 
@@ -24,6 +43,15 @@ impl UIState {
     pub fn cursor_move_down(&mut self) {
         if self.should_show_cursor {
             self.cursor_line += 1;
+        }
+    }
+
+    fn get_line_len(&self, index: u16) -> u16 {
+        // this will break if index is higher than 65535, which is not impossible
+        // TODO: switch to `usize` everywhere, and only use `u16` for actual terminal
+        match self.lines.get(index as usize) {
+            Some(line) => line.len() as u16,
+            None => 0,
         }
     }
 }
@@ -81,5 +109,64 @@ mod tests {
         ui_state.cursor_move_up();
 
         assert_eq!(ui_state.cursor_line, 2);
+    }
+
+    #[test]
+    fn move_right_goes_to_next_line() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0);
+
+        for _ in 0..5 {
+            ui_state.cursor_move_right();
+        }
+
+        assert_eq!(ui_state.cursor_column, 6);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        // should move to the next line
+        ui_state.cursor_move_right();
+
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 2);
+
+        // should move to the next line
+        ui_state.cursor_move_right();
+
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 3);
+    }
+
+    #[test]
+    fn move_left_goes_to_previous_line() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0);
+
+        ui_state.cursor_move_down();
+        ui_state.cursor_move_down();
+
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 3);
+
+        // should go to the previous line
+        ui_state.cursor_move_left();
+
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 2);
+
+        // should go to the previous line
+        ui_state.cursor_move_left();
+
+        assert_eq!(ui_state.cursor_column, 6);
+        assert_eq!(ui_state.cursor_line, 1);
     }
 }
