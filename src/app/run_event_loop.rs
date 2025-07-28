@@ -30,6 +30,7 @@ pub(super) fn run(
                     KeyCode::Up => app_state.ui_state.cursor_move_up(),
                     KeyCode::Backspace => app_state.ui_state.remove_previous_character(),
                     KeyCode::Delete => app_state.ui_state.remove_next_character(),
+                    KeyCode::Enter => app_state.ui_state.add_new_line(),
                     _ => {}
                 }
             }
