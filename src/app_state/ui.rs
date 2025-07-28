@@ -1,29 +1,36 @@
-use std::path::PathBuf;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
+use std::path::PathBuf;
 
-use crossterm::{execute, cursor::{Show, MoveTo, SetCursorStyle}};
+use crossterm::{
+    cursor::{MoveTo, SetCursorStyle, Show},
+    execute,
+};
 
 pub struct FileEntry {
-    pub path: PathBuf
+    pub path: PathBuf,
 }
 
 pub struct DirEntry {
     pub path: PathBuf,
     file_tree: HashMap<PathBuf, Vec<FileTreeEntry>>,
-    expanded: bool
+    expanded: bool,
 }
 
 pub enum FileTreeEntry {
     File(FileEntry),
-    Dir(DirEntry)
+    Dir(DirEntry),
 }
 
 impl FileTreeEntry {
     pub fn new(path: PathBuf) -> FileTreeEntry {
         if path.is_dir() {
-            FileTreeEntry::Dir(DirEntry { path, expanded: false, file_tree: HashMap::new() })
+            FileTreeEntry::Dir(DirEntry {
+                path,
+                expanded: false,
+                file_tree: HashMap::new(),
+            })
         } else {
             FileTreeEntry::File(FileEntry { path })
         }
@@ -41,7 +48,7 @@ pub struct UIState {
 }
 
 impl UIState {
-    pub fn new(prefix_len: u16, lines: Vec<Vec<char>>,) -> Self {
+    pub fn new(prefix_len: u16, lines: Vec<Vec<char>>) -> Self {
         UIState {
             cursor_line: 1,
             cursor_column: 1,
@@ -50,7 +57,7 @@ impl UIState {
             editor_offset_y: 0,
             should_show_cursor: false,
             // 1 character at the beginning, one space at the end
-            prefix_len: prefix_len + 2
+            prefix_len: prefix_len + 2,
         }
     }
 
@@ -73,7 +80,8 @@ impl UIState {
                 io::stdout(),
                 MoveTo(x, y),
                 SetCursorStyle::SteadyBlock,
-                Show);
+                Show
+            );
 
             match result {
                 Ok(_) => {

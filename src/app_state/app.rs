@@ -1,6 +1,6 @@
-use std::path::PathBuf;
 use std::collections::HashMap;
 use std::fs;
+use std::path::PathBuf;
 
 use super::ui::{FileTreeEntry, UIState};
 
@@ -22,7 +22,7 @@ impl AppState {
             working_directory,
             file_tree: HashMap::new(),
             // this is extremely safe, it needs to have 65535 digits to overflow
-            ui_state: UIState::new(lines_number.to_string().len() as u16, lines)
+            ui_state: UIState::new(lines_number.to_string().len() as u16, lines),
         }
     }
 

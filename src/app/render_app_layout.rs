@@ -1,6 +1,10 @@
-use ratatui::{layout::{Constraint, Layout}, widgets::Block, Frame};
+use ratatui::{
+    Frame,
+    layout::{Constraint, Layout},
+    widgets::Block,
+};
 
-use crate::{app_state::AppState};
+use crate::app_state::AppState;
 use crate::editor::render_editor;
 use crate::file_tree::render_file_tree;
 

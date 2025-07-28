@@ -1,13 +1,16 @@
 use std::io;
 
-use ratatui::{backend::{CrosstermBackend}, Terminal};
-use crossterm::{event::{self, Event, KeyCode, KeyEventKind}};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use ratatui::{Terminal, backend::CrosstermBackend};
 
-use crate::app_state::AppState;
-use super::terminal_setup::restore_terminal;
 use super::render_app_layout::render;
+use super::terminal_setup::restore_terminal;
+use crate::app_state::AppState;
 
-pub(super) fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app_state: &mut AppState) -> io::Result<()> {
+pub(super) fn run(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    app_state: &mut AppState,
+) -> io::Result<()> {
     loop {
         terminal.draw(|frame| render(frame, app_state))?;
 
