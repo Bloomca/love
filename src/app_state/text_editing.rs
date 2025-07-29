@@ -69,9 +69,7 @@ impl UIState {
                     self.cursor_move_left();
                 }
             }
-            None => {
-                // ????
-            }
+            None => {}
         }
     }
 
@@ -86,13 +84,24 @@ impl UIState {
                 let line_len = line.len();
                 if index == line_len {
                     // we need to get the next line and append it to the current line
+
+                    let is_last_line = self.lines.len() == self.cursor_line as usize;
+                    if is_last_line {
+                        // do nothing, we are at the end of the file
+                    } else {
+                        let mut next_line = self.lines.remove(self.cursor_line as usize);
+
+                        if let Some(current_line) =
+                            self.lines.get_mut((self.cursor_line - 1) as usize)
+                        {
+                            current_line.append(&mut next_line);
+                        }
+                    }
                 } else if line_len > 0 && index < line_len {
                     line.remove(index);
                 }
             }
-            None => {
-                // ????
-            }
+            None => {}
         }
     }
 
@@ -218,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn handles_lines_deleting_correctly() {
+    fn handles_backspace_lines_deleting_correctly() {
         let lines = vec![
             vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
             vec![],
@@ -255,5 +264,48 @@ mod tests {
             String::from_iter(&ui_state.lines[0]),
             "Hello world!Description"
         );
+    }
+
+    #[test]
+    fn handles_deletekey_lines_deleting_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0);
+
+        for _ in 0..12 {
+            ui_state.cursor_move_right();
+        }
+
+        // make sure we are at the beginning of the first line
+        assert_eq!(ui_state.cursor_column, 13);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        ui_state.remove_next_character();
+
+        assert_eq!(ui_state.lines.len(), 2);
+
+        ui_state.remove_next_character();
+        assert_eq!(ui_state.lines.len(), 1);
+
+        assert_eq!(
+            String::from_iter(&ui_state.lines[0]),
+            "Hello world!Description"
+        );
+
+        // navigate to the end of the last line
+        ui_state.cursor_move_down();
+
+        assert_eq!(ui_state.cursor_column, 24);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        // nothing should happen, we are at the end of the file
+        ui_state.remove_next_character();
+
+        assert_eq!(ui_state.cursor_column, 24);
+        assert_eq!(ui_state.cursor_line, 1);
     }
 }
