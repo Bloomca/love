@@ -38,38 +38,36 @@ impl UIState {
         } else {
             0
         };
-        match self.lines.get_mut((self.cursor_line - 1) as usize) {
-            Some(line) => {
-                if index == 0 {
-                    // we need to prepend current line to the previous one
-                    // 1. call `let line = self.lines.remove(self.cursor_line - 1)`
-                    // 2. call self.lines[self.cursor_line - 2].append(line)
-                    // 3. call `self.cursor_line -= 1`
-                    // 4. call `self.cursor_column = previous_line_len + 1`
-                    // similar idea with delete, but at the end of the line
 
-                    if line.len() == 0 {
-                        self.lines.remove((self.cursor_line - 1) as usize);
-                    } else {
-                        let mut current_line = self.lines.remove((self.cursor_line - 1) as usize);
-                        match self.lines.get_mut((self.cursor_line - 2) as usize) {
-                            Some(previous_line) => {
-                                previous_line.append(&mut current_line);
-                            }
-                            None => {
-                                return;
-                            }
+        if let Some(line) = self.lines.get_mut((self.cursor_line - 1) as usize) {
+            if index == 0 {
+                // we need to prepend current line to the previous one
+                // 1. call `let line = self.lines.remove(self.cursor_line - 1)`
+                // 2. call self.lines[self.cursor_line - 2].append(line)
+                // 3. call `self.cursor_line -= 1`
+                // 4. call `self.cursor_column = previous_line_len + 1`
+                // similar idea with delete, but at the end of the line
+
+                if line.is_empty() {
+                    self.lines.remove((self.cursor_line - 1) as usize);
+                } else {
+                    let mut current_line = self.lines.remove((self.cursor_line - 1) as usize);
+                    match self.lines.get_mut((self.cursor_line - 2) as usize) {
+                        Some(previous_line) => {
+                            previous_line.append(&mut current_line);
+                        }
+                        None => {
+                            return;
                         }
                     }
-
-                    self.cursor_line -= 1;
-                    self.cursor_column = previous_line_len + 1;
-                } else if index <= line.len() {
-                    line.remove(index - 1);
-                    self.cursor_move_left();
                 }
+
+                self.cursor_line -= 1;
+                self.cursor_column = previous_line_len + 1;
+            } else if index <= line.len() {
+                line.remove(index - 1);
+                self.cursor_move_left();
             }
-            None => {}
         }
     }
 
@@ -79,29 +77,25 @@ impl UIState {
 
         let index = (self.cursor_column - 1) as usize;
 
-        match self.lines.get_mut((self.cursor_line - 1) as usize) {
-            Some(line) => {
-                let line_len = line.len();
-                if index == line_len {
-                    // we need to get the next line and append it to the current line
+        if let Some(line) = self.lines.get_mut((self.cursor_line - 1) as usize) {
+            let line_len = line.len();
+            if index == line_len {
+                // we need to get the next line and append it to the current line
 
-                    let is_last_line = self.lines.len() == self.cursor_line as usize;
-                    if is_last_line {
-                        // do nothing, we are at the end of the file
-                    } else {
-                        let mut next_line = self.lines.remove(self.cursor_line as usize);
+                let is_last_line = self.lines.len() == self.cursor_line as usize;
+                if is_last_line {
+                    // do nothing, we are at the end of the file
+                } else {
+                    let mut next_line = self.lines.remove(self.cursor_line as usize);
 
-                        if let Some(current_line) =
-                            self.lines.get_mut((self.cursor_line - 1) as usize)
-                        {
-                            current_line.append(&mut next_line);
-                        }
+                    if let Some(current_line) = self.lines.get_mut((self.cursor_line - 1) as usize)
+                    {
+                        current_line.append(&mut next_line);
                     }
-                } else if line_len > 0 && index < line_len {
-                    line.remove(index);
                 }
+            } else if line_len > 0 && index < line_len {
+                line.remove(index);
             }
-            None => {}
         }
     }
 
