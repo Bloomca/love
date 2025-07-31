@@ -28,7 +28,7 @@ impl UIState {
 
             let line_len = self.get_line_len(self.cursor_line - 1);
             if self.cursor_column > line_len {
-                if self.cursor_line >= self.lines.len() as u16 {
+                if self.cursor_line >= self.lines.len() {
                     // we are on the last line, do nothing
                 } else {
                     // need to move to the next line
@@ -57,7 +57,7 @@ impl UIState {
 
     pub fn cursor_move_down(&mut self) {
         if self.should_show_cursor {
-            if self.cursor_line == self.lines.len() as u16 {
+            if self.cursor_line == self.lines.len() {
                 if self.vertical_offset_target == 0 {
                     self.vertical_offset_target = self.cursor_column;
                 }
@@ -102,11 +102,11 @@ impl UIState {
         }
     }
 
-    pub(super) fn get_line_len(&self, index: u16) -> u16 {
+    pub(super) fn get_line_len(&self, index: usize) -> usize {
         // this will break if index is higher than 65535, which is not impossible
         // TODO: switch to `usize` everywhere, and only use `u16` for actual terminal
-        match self.lines.get(index as usize) {
-            Some(line) => line.len() as u16,
+        match self.lines.get(index) {
+            Some(line) => line.len(),
             None => 0,
         }
     }

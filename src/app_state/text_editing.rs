@@ -4,11 +4,11 @@ impl UIState {
     pub fn insert_character(&mut self, character: char) {
         self.vertical_offset_target = 0;
 
-        let result = self.lines.get_mut((self.cursor_line - 1) as usize);
+        let result = self.lines.get_mut(self.cursor_line - 1);
 
         match result {
             Some(line) => {
-                let index = (self.cursor_column - 1) as usize;
+                let index = self.cursor_column - 1;
                 if index <= line.len() {
                     line.insert(index, character);
                     self.cursor_move_right();
@@ -23,7 +23,7 @@ impl UIState {
     pub fn remove_previous_character(&mut self) {
         self.vertical_offset_target = 0;
 
-        let index = (self.cursor_column - 1) as usize;
+        let index = self.cursor_column - 1;
 
         if self.cursor_column == 1 && self.cursor_line == 1 {
             // nothing to remove, we are already at the beginning
@@ -39,7 +39,7 @@ impl UIState {
             0
         };
 
-        if let Some(line) = self.lines.get_mut((self.cursor_line - 1) as usize) {
+        if let Some(line) = self.lines.get_mut(self.cursor_line - 1) {
             if index == 0 {
                 // we need to prepend current line to the previous one
                 // 1. call `let line = self.lines.remove(self.cursor_line - 1)`
@@ -49,10 +49,10 @@ impl UIState {
                 // similar idea with delete, but at the end of the line
 
                 if line.is_empty() {
-                    self.lines.remove((self.cursor_line - 1) as usize);
+                    self.lines.remove(self.cursor_line - 1);
                 } else {
-                    let mut current_line = self.lines.remove((self.cursor_line - 1) as usize);
-                    match self.lines.get_mut((self.cursor_line - 2) as usize) {
+                    let mut current_line = self.lines.remove(self.cursor_line - 1);
+                    match self.lines.get_mut(self.cursor_line - 2) {
                         Some(previous_line) => {
                             previous_line.append(&mut current_line);
                         }
@@ -75,21 +75,20 @@ impl UIState {
     pub fn remove_next_character(&mut self) {
         self.vertical_offset_target = 0;
 
-        let index = (self.cursor_column - 1) as usize;
+        let index = self.cursor_column - 1;
 
-        if let Some(line) = self.lines.get_mut((self.cursor_line - 1) as usize) {
+        if let Some(line) = self.lines.get_mut(self.cursor_line - 1) {
             let line_len = line.len();
             if index == line_len {
                 // we need to get the next line and append it to the current line
 
-                let is_last_line = self.lines.len() == self.cursor_line as usize;
+                let is_last_line = self.lines.len() == self.cursor_line;
                 if is_last_line {
                     // do nothing, we are at the end of the file
                 } else {
-                    let mut next_line = self.lines.remove(self.cursor_line as usize);
+                    let mut next_line = self.lines.remove(self.cursor_line);
 
-                    if let Some(current_line) = self.lines.get_mut((self.cursor_line - 1) as usize)
-                    {
+                    if let Some(current_line) = self.lines.get_mut(self.cursor_line - 1) {
                         current_line.append(&mut next_line);
                     }
                 }
@@ -105,12 +104,12 @@ impl UIState {
         let current_line_len = self.get_line_len(self.cursor_line - 1);
 
         if self.cursor_column > current_line_len {
-            self.lines.insert(self.cursor_line as usize, vec![]);
+            self.lines.insert(self.cursor_line, vec![]);
         } else {
-            match self.lines.get_mut((self.cursor_line - 1) as usize) {
+            match self.lines.get_mut(self.cursor_line - 1) {
                 Some(line) => {
-                    let new_line = line.split_off((self.cursor_column - 1) as usize);
-                    self.lines.insert(self.cursor_line as usize, new_line);
+                    let new_line = line.split_off(self.cursor_column - 1);
+                    self.lines.insert(self.cursor_line, new_line);
                     self.cursor_line += 1;
                     self.cursor_column = 1;
                 }
