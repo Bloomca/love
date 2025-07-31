@@ -21,8 +21,7 @@ impl AppState {
         AppState {
             working_directory,
             file_tree: HashMap::new(),
-            // this is extremely safe, it needs to have 65535 digits to overflow
-            ui_state: UIState::new(lines_number.to_string().len() as u16, lines),
+            ui_state: UIState::new(lines_number.to_string().len(), lines),
         }
     }
 

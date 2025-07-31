@@ -36,11 +36,11 @@ impl FileTreeEntry {
 }
 
 pub struct UIState {
-    pub cursor_line: u16,
-    pub cursor_column: u16,
+    pub cursor_line: usize,
+    pub cursor_column: usize,
     pub lines: Vec<Vec<char>>,
-    editor_offset_x: u16,
-    editor_offset_y: u16,
+    editor_offset_x: usize,
+    editor_offset_y: usize,
 
     /// There are multiple widgets which can be focused, plus we might
     /// not even have a valid editor open (e.g. if all files are closed)
@@ -49,7 +49,7 @@ pub struct UIState {
     /// Each line is prefixed with the line number. To have a consistent
     /// prefix width, we take the highest number, take number of digits,
     /// and add `|` symbol and a space afterwards.
-    prefix_len: u16,
+    prefix_len: usize,
 
     /// When we navigate using up/down directions, we ideally want to stay
     /// on the same column vertically. It is not always possible, because
@@ -57,11 +57,11 @@ pub struct UIState {
     /// have enough! So in order to preserve that, we need to store the
     /// "target" column. It is invalidated the moment we navigate left or right,
     /// or insert a new character.
-    pub(super) vertical_offset_target: u16,
+    pub(super) vertical_offset_target: usize,
 }
 
 impl UIState {
-    pub fn new(prefix_len: u16, lines: Vec<Vec<char>>) -> Self {
+    pub fn new(prefix_len: usize, lines: Vec<Vec<char>>) -> Self {
         UIState {
             cursor_line: 1,
             cursor_column: 1,
@@ -75,7 +75,7 @@ impl UIState {
         }
     }
 
-    pub fn set_editor_offset(&mut self, x: u16, y: u16) {
+    pub fn set_editor_offset(&mut self, x: usize, y: usize) {
         // in theory, we only need to set this once. we might need to do again
         // if the file tree is resized, otherwise the offset should be steady.
         // for now, this should work
@@ -92,7 +92,7 @@ impl UIState {
             let y = self.cursor_line + self.editor_offset_y;
             let result = execute!(
                 io::stdout(),
-                MoveTo(x, y),
+                MoveTo(x as u16, y as u16),
                 SetCursorStyle::SteadyBlock,
                 Show
             );
