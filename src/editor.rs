@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Rect},
     style::{Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Paragraph, Wrap},
+    widgets::{Block, Paragraph},
 };
 
 use crate::app_state::AppState;
@@ -17,15 +17,14 @@ pub fn render_editor(frame: &mut Frame, area: Rect, app_state: &mut AppState) {
         .lines
         .iter()
         .enumerate()
-        .map(|(i, line)| generate_code_line(line.iter().collect::<String>(), i, lines_number))
+        .map(|(i, line)| generate_code_line(line.iter().collect::<String>(), i + 1, lines_number))
         .collect();
 
     let block = Block::bordered().title("Editor");
     let text_widget = Paragraph::new(text)
         .block(block)
         .style(Style::new().white().on_black())
-        .alignment(Alignment::Left)
-        .wrap(Wrap { trim: true });
+        .alignment(Alignment::Left);
 
     frame.render_widget(text_widget, area);
 }

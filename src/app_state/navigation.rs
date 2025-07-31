@@ -71,6 +71,22 @@ impl UIState {
         }
     }
 
+    pub fn cursor_move_line_start(&mut self) {
+        if self.should_show_cursor {
+            self.vertical_offset_target = 0;
+            // TODO: implement going to the beginning of the line respecting white spaces
+            self.cursor_column = 1;
+        }
+    }
+
+    pub fn cursor_move_line_end(&mut self) {
+        if self.should_show_cursor {
+            self.vertical_offset_target = 0;
+            let line_len = self.get_line_len(self.cursor_line - 1);
+            self.cursor_column = line_len + 1;
+        }
+    }
+
     fn adjust_cursor_column_after_vertical_nav(&mut self) {
         // if it is not 0, it means we were pressing up/down before
         if self.vertical_offset_target == 0 {
@@ -259,5 +275,32 @@ mod tests {
 
         assert_eq!(ui_state.cursor_column, 3);
         assert_eq!(ui_state.cursor_line, 1);
+    }
+
+    #[test]
+    fn move_start_end_line_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0);
+
+        ui_state.cursor_move_line_end();
+        assert_eq!(ui_state.cursor_column, 6);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        ui_state.cursor_move_down();
+        ui_state.cursor_move_down();
+
+        ui_state.cursor_move_line_start();
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 3);
+
+        ui_state.cursor_move_line_end();
+        assert_eq!(ui_state.cursor_column, 12);
+        assert_eq!(ui_state.cursor_line, 3);
     }
 }

@@ -24,7 +24,9 @@ pub(super) fn run(
                         return Ok(());
                     }
                     KeyCode::Char(character) => app_state.ui_state.insert_character(character),
+                    KeyCode::Home => app_state.ui_state.cursor_move_line_start(),
                     KeyCode::Left => app_state.ui_state.cursor_move_left(),
+                    KeyCode::End => app_state.ui_state.cursor_move_line_end(),
                     KeyCode::Right => app_state.ui_state.cursor_move_right(),
                     KeyCode::Down => app_state.ui_state.cursor_move_down(),
                     KeyCode::Up => app_state.ui_state.cursor_move_up(),
