@@ -64,6 +64,8 @@ impl UIState {
 
                 self.cursor_line -= 1;
                 self.cursor_column = previous_line_len + 1;
+
+                self.handle_cursor_scrolling();
             } else if index <= line.len() {
                 line.remove(index - 1);
                 self.cursor_move_left();
@@ -105,6 +107,9 @@ impl UIState {
 
         if self.cursor_column > current_line_len {
             self.lines.insert(self.cursor_line, vec![]);
+
+            // TODO?? MOVE THE CURSOR?
+            self.handle_cursor_scrolling();
         } else {
             match self.lines.get_mut(self.cursor_line - 1) {
                 Some(line) => {
@@ -112,6 +117,8 @@ impl UIState {
                     self.lines.insert(self.cursor_line, new_line);
                     self.cursor_line += 1;
                     self.cursor_column = 1;
+
+                    self.handle_cursor_scrolling();
                 }
                 None => {
                     // ???
@@ -133,7 +140,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..6 {
             ui_state.cursor_move_right();
@@ -154,7 +161,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..6 {
             ui_state.cursor_move_right();
@@ -177,7 +184,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..6 {
             ui_state.remove_next_character();
@@ -195,7 +202,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         ui_state.cursor_move_right();
         ui_state.cursor_move_right();
@@ -227,7 +234,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         ui_state.cursor_move_down();
 
@@ -267,7 +274,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..12 {
             ui_state.cursor_move_right();

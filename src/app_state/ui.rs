@@ -39,8 +39,13 @@ pub struct UIState {
     pub cursor_line: usize,
     pub cursor_column: usize,
     pub lines: Vec<Vec<char>>,
+    /// horizontal offset on the screen; needed to place the cursor
     editor_offset_x: usize,
+    /// vertical offset on the screen; needed to place the cursor
     editor_offset_y: usize,
+    /// we don't want to process more lines than visible
+    pub editor_lines_num: usize,
+    pub editor_scroll_offset: usize,
 
     /// There are multiple widgets which can be focused, plus we might
     /// not even have a valid editor open (e.g. if all files are closed)
@@ -68,6 +73,9 @@ impl UIState {
             lines,
             editor_offset_x: 0,
             editor_offset_y: 0,
+            // big random number
+            editor_lines_num: 1000,
+            editor_scroll_offset: 0,
             should_show_cursor: false,
             // 1 character at the beginning, one space at the end
             prefix_len: prefix_len + 2,
@@ -75,13 +83,15 @@ impl UIState {
         }
     }
 
-    pub fn set_editor_offset(&mut self, x: usize, y: usize) {
+    pub fn set_editor_offset(&mut self, x: usize, y: usize, height: usize) {
         // in theory, we only need to set this once. we might need to do again
         // if the file tree is resized, otherwise the offset should be steady.
         // for now, this should work
         if !self.should_show_cursor {
             self.editor_offset_x = x;
             self.editor_offset_y = y;
+            // 1 for the border at the top, 1 for the border at the bottom
+            self.editor_lines_num = height - 2;
             self.should_show_cursor = true;
         }
     }
@@ -89,7 +99,7 @@ impl UIState {
     pub fn show_cursor_if_needed(&mut self) {
         if self.should_show_cursor {
             let x = self.cursor_column + self.editor_offset_x + self.prefix_len;
-            let y = self.cursor_line + self.editor_offset_y;
+            let y = self.cursor_line + self.editor_offset_y - self.editor_scroll_offset;
             let result = execute!(
                 io::stdout(),
                 MoveTo(x as u16, y as u16),
