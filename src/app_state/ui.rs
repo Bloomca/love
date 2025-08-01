@@ -64,13 +64,24 @@ impl Selection {
 
         let (start_line, start_column) = self.start;
 
+        let direction_forward = (current_cursor_line, current_cursor_col) > (start_line, start_column);
+
         if start_line == current_cursor_line {
+            let entry = if direction_forward {
+                SelectionType::Range(
+                    start_column.min(current_cursor_col),
+                    start_column.max(current_cursor_col - 1),
+                )
+            } else {
+                SelectionType::Range(
+                    start_column.min(current_cursor_col - 1),
+                    start_column.max(current_cursor_col),
+                )
+            };
+
             self.cache
                 .entry(start_line)
-                .insert_entry(SelectionType::Range(
-                    start_column.min(current_cursor_col),
-                    start_column.max(current_cursor_col),
-                ));
+                .insert_entry(entry);
         } else {
             let min_line = start_line.min(current_cursor_line);
             let max_line = start_line.max(current_cursor_line);
