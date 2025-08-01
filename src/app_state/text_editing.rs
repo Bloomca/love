@@ -1,8 +1,11 @@
 use super::ui::UIState;
+use crossterm::event::KeyModifiers;
 
 impl UIState {
     pub fn insert_character(&mut self, character: char) {
         self.vertical_offset_target = 0;
+
+        // TODO: delete selection
 
         let result = self.lines.get_mut(self.cursor_line - 1);
 
@@ -11,7 +14,8 @@ impl UIState {
                 let index = self.cursor_column - 1;
                 if index <= line.len() {
                     line.insert(index, character);
-                    self.cursor_move_right();
+                    // manually set to have no modifiers, so the newly inserted character is not selected
+                    self.cursor_move_right(&KeyModifiers::NONE);
                 }
             }
             None => {
@@ -22,6 +26,8 @@ impl UIState {
 
     pub fn remove_previous_character(&mut self) {
         self.vertical_offset_target = 0;
+
+        // TODO: if there is selection, we need to delete it
 
         let index = self.cursor_column - 1;
 
@@ -77,6 +83,8 @@ impl UIState {
     pub fn remove_next_character(&mut self) {
         self.vertical_offset_target = 0;
 
+        // TODO: if there is selection, we need to delete it
+
         let index = self.cursor_column - 1;
 
         if let Some(line) = self.lines.get_mut(self.cursor_line - 1) {
@@ -102,6 +110,8 @@ impl UIState {
 
     pub fn add_new_line(&mut self) {
         self.vertical_offset_target = 0;
+
+        // TODO: if there is selection, we need to delete it
 
         let current_line_len = self.get_line_len(self.cursor_line - 1);
 
@@ -145,7 +155,7 @@ mod tests {
         ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..6 {
-            ui_state.cursor_move_right();
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
         }
 
         ui_state.insert_character('m');
@@ -166,7 +176,7 @@ mod tests {
         ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..6 {
-            ui_state.cursor_move_right();
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
         }
 
         // intentionally delete more than 6 characters
@@ -206,9 +216,9 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_right();
-        ui_state.cursor_move_right();
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         ui_state.add_new_line();
 
@@ -279,7 +289,7 @@ mod tests {
         ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..12 {
-            ui_state.cursor_move_right();
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
         }
 
         // make sure we are at the beginning of the first line

@@ -1,4 +1,5 @@
 use super::ui::UIState;
+use crossterm::event::KeyModifiers;
 
 impl UIState {
     pub fn cursor_move_left(&mut self) {
@@ -24,14 +25,17 @@ impl UIState {
         }
     }
 
-    pub fn cursor_move_right(&mut self) {
+    pub fn cursor_move_right(&mut self, modifiers: &KeyModifiers) {
         if self.should_show_cursor {
             self.vertical_offset_target = 0;
+
+            self.start_selection(modifiers);
 
             let line_len = self.get_line_len(self.cursor_line - 1);
             if self.cursor_column > line_len {
                 if self.cursor_line >= self.lines.len() {
                     // we are on the last line, do nothing
+                    return;
                 } else {
                     // need to move to the next line
                     self.cursor_column = 1;
@@ -42,6 +46,8 @@ impl UIState {
             } else {
                 self.cursor_column += 1;
             }
+
+            self.adjust_selection();
         }
     }
 
@@ -164,8 +170,8 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_right();
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 3);
 
@@ -194,27 +200,27 @@ mod tests {
         ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..5 {
-            ui_state.cursor_move_right();
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
         }
 
         assert_eq!(ui_state.cursor_column, 6);
         assert_eq!(ui_state.cursor_line, 1);
 
         // should move to the next line
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 2);
 
         // should move to the next line
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 3);
 
         // there is no lines after this one
         for _ in 0..15 {
-            ui_state.cursor_move_right();
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
         }
 
         assert_eq!(ui_state.cursor_column, 12);
@@ -260,8 +266,8 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_right();
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 3);
         assert_eq!(ui_state.cursor_line, 1);
@@ -349,7 +355,7 @@ mod tests {
         assert_eq!(ui_state.editor_scroll_offset, 1);
 
         ui_state.cursor_move_line_end();
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.editor_scroll_offset, 2);
 

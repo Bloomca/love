@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
 
 use crossterm::{
     cursor::{MoveTo, SetCursorStyle, Show},
+    event::KeyModifiers,
     execute,
 };
 
@@ -35,6 +37,75 @@ impl FileTreeEntry {
     }
 }
 
+enum SelectionType {
+    Line,
+    To(usize),
+    From(usize),
+    Range(usize, usize),
+}
+
+struct Selection {
+    start: (usize, usize),
+    end: (usize, usize),
+    cache: HashMap<usize, SelectionType>,
+}
+
+impl Selection {
+    fn new(current_cursor_line: usize, current_cursor_col: usize) -> Self {
+        Selection {
+            start: (current_cursor_col, current_cursor_line),
+            end: (current_cursor_col, current_cursor_line),
+            cache: HashMap::new(),
+        }
+    }
+
+    fn set_end(&mut self, current_cursor_line: usize, current_cursor_col: usize) {
+        self.end = (current_cursor_col, current_cursor_line);
+
+        let (start_line, start_column) = self.start;
+
+        if start_line == current_cursor_line {
+            self.cache
+                .entry(start_line)
+                .insert_entry(SelectionType::Range(
+                    start_column.min(current_cursor_col),
+                    start_column.max(current_cursor_col),
+                ));
+        } else {
+            let min_line = start_line.min(current_cursor_line);
+            let max_line = start_line.max(current_cursor_line);
+
+            let (min_line_column, max_line_column) = if start_line < current_cursor_line {
+                (start_column, current_cursor_col)
+            } else {
+                (current_cursor_col, start_column)
+            };
+
+            for line_num in min_line..=max_line {
+                let entry = match line_num {
+                    _ if line_num == min_line => SelectionType::From(min_line_column),
+                    _ if line_num == max_line => SelectionType::To(max_line_column),
+                    _ => SelectionType::Line,
+                };
+
+                self.cache.entry(line_num).insert_entry(entry);
+            }
+        }
+    }
+
+    fn is_char_selected(&self, line: usize, column: usize) -> bool {
+        match self.cache.get(&line) {
+            Some(selection_type) => match selection_type {
+                SelectionType::Line => true,
+                SelectionType::To(selected_col) => selected_col >= &column,
+                SelectionType::From(selected_col) => selected_col <= &column,
+                SelectionType::Range(min_col, max_col) => &column >= min_col && &column <= max_col,
+            },
+            None => false,
+        }
+    }
+}
+
 pub struct UIState {
     pub cursor_line: usize,
     pub cursor_column: usize,
@@ -63,6 +134,8 @@ pub struct UIState {
     /// "target" column. It is invalidated the moment we navigate left or right,
     /// or insert a new character.
     pub(super) vertical_offset_target: usize,
+
+    selection: Option<Selection>,
 }
 
 impl UIState {
@@ -80,6 +153,7 @@ impl UIState {
             // 1 character at the beginning, one space at the end
             prefix_len: prefix_len + 2,
             vertical_offset_target: 0,
+            selection: None,
         }
     }
 
@@ -115,6 +189,36 @@ impl UIState {
                     // TODO: handle somehow
                 }
             }
+        }
+    }
+
+    /// Start a new selection if necessary, clear existing one if necessary or do nothing if one exists
+    pub fn start_selection(&mut self, modifiers: &KeyModifiers) {
+        if modifiers.contains(KeyModifiers::SHIFT) {
+            if self.selection.is_none() {
+                self.selection = Some(Selection::new(self.cursor_line, self.cursor_column));
+            }
+        } else {
+            self.selection = None;
+        }
+    }
+
+    /// This function only adjust existing selection, but it doesn't clear it based on keyboard modifiers.
+    /// However, it will clear the selection if the cursor is at the same spot as it started.
+    pub fn adjust_selection(&mut self) {
+        if let Some(selection) = &mut self.selection {
+            if selection.start.0 == self.cursor_line && selection.start.1 == self.cursor_column {
+                self.selection = None;
+            } else {
+                selection.set_end(self.cursor_line, self.cursor_column);
+            }
+        }
+    }
+
+    pub fn is_char_selected(&self, line: usize, column: usize) -> bool {
+        match &self.selection {
+            Some(selection) => selection.is_char_selected(line, column),
+            None => false,
         }
     }
 }
