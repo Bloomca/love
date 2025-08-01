@@ -74,7 +74,7 @@ impl UIState {
                 self.handle_cursor_scrolling();
             } else if index <= line.len() {
                 line.remove(index - 1);
-                self.cursor_move_left();
+                self.cursor_move_left(&KeyModifiers::NONE);
             }
         }
     }
@@ -259,7 +259,7 @@ mod tests {
         // bring it to the first character
         ui_state.cursor_move_up();
         // forget the vertical offset
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
         ui_state.cursor_move_down();
 
         // make sure we are at the beginning of the second line
@@ -342,5 +342,12 @@ mod tests {
         assert!(!ui_state.is_char_selected(1, 1));
         assert!(!ui_state.is_char_selected(1, 2));
         assert!(!ui_state.is_char_selected(1, 3));
+
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+
+        assert!(!ui_state.is_char_selected(1, 1));
+        assert!(ui_state.is_char_selected(1, 2));
+        assert!(ui_state.is_char_selected(1, 3));
     }
 }

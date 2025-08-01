@@ -2,13 +2,16 @@ use super::ui::UIState;
 use crossterm::event::KeyModifiers;
 
 impl UIState {
-    pub fn cursor_move_left(&mut self) {
+    pub fn cursor_move_left(&mut self, modifiers: &KeyModifiers) {
         if self.should_show_cursor {
             self.vertical_offset_target = 0;
+
+            self.start_selection(modifiers);
 
             if self.cursor_column == 1 {
                 if self.cursor_line == 1 {
                     // we already at the beginning of the file, nothing to do
+                    return;
                 } else {
                     let new_cursor_line = self.cursor_line - 1;
                     self.cursor_line = new_cursor_line;
@@ -22,6 +25,8 @@ impl UIState {
                 let new_value = self.cursor_column - 1;
                 self.cursor_column = new_value;
             }
+
+            self.adjust_selection();
         }
     }
 
@@ -148,9 +153,9 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_left();
-        ui_state.cursor_move_left();
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
 
         ui_state.cursor_move_up();
         ui_state.cursor_move_up();
@@ -175,7 +180,7 @@ mod tests {
 
         assert_eq!(ui_state.cursor_column, 3);
 
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 2);
 
@@ -244,13 +249,13 @@ mod tests {
         assert_eq!(ui_state.cursor_line, 3);
 
         // should go to the previous line
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 2);
 
         // should go to the previous line
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 6);
         assert_eq!(ui_state.cursor_line, 1);
@@ -367,7 +372,7 @@ mod tests {
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 3);
 
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.editor_scroll_offset, 1);
 
