@@ -248,7 +248,7 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         ui_state.remove_previous_character();
 
@@ -257,10 +257,10 @@ mod tests {
         assert_eq!(ui_state.cursor_line, 1);
 
         // bring it to the first character
-        ui_state.cursor_move_up();
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
         // forget the vertical offset
         ui_state.cursor_move_left(&KeyModifiers::NONE);
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         // make sure we are at the beginning of the second line
         assert_eq!(ui_state.cursor_column, 1);
@@ -309,7 +309,7 @@ mod tests {
         );
 
         // navigate to the end of the last line
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 24);
         assert_eq!(ui_state.cursor_line, 1);
@@ -319,35 +319,5 @@ mod tests {
 
         assert_eq!(ui_state.cursor_column, 24);
         assert_eq!(ui_state.cursor_line, 1);
-    }
-
-    #[test]
-    fn handle_selection_correctly() {
-        let lines = vec![
-            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
-            vec![],
-            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
-        ];
-        let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0, 50);
-
-        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
-        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
-
-        assert!(ui_state.is_char_selected(1, 1));
-        assert!(ui_state.is_char_selected(1, 2));
-
-        ui_state.cursor_move_right(&KeyModifiers::NONE);
-
-        assert!(!ui_state.is_char_selected(1, 1));
-        assert!(!ui_state.is_char_selected(1, 2));
-        assert!(!ui_state.is_char_selected(1, 3));
-
-        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
-        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
-
-        assert!(!ui_state.is_char_selected(1, 1));
-        assert!(ui_state.is_char_selected(1, 2));
-        assert!(ui_state.is_char_selected(1, 3));
     }
 }

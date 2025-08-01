@@ -53,35 +53,26 @@ struct Selection {
 impl Selection {
     fn new(current_cursor_line: usize, current_cursor_col: usize) -> Self {
         Selection {
-            start: (current_cursor_col, current_cursor_line),
-            end: (current_cursor_col, current_cursor_line),
+            start: (current_cursor_line, current_cursor_col),
+            end: (current_cursor_line, current_cursor_col),
             cache: HashMap::new(),
         }
     }
 
     fn set_end(&mut self, current_cursor_line: usize, current_cursor_col: usize) {
-        self.end = (current_cursor_col, current_cursor_line);
+        self.end = (current_cursor_line, current_cursor_col);
 
         let (start_line, start_column) = self.start;
 
         let direction_forward = (current_cursor_line, current_cursor_col) > (start_line, start_column);
 
         if start_line == current_cursor_line {
-            let entry = if direction_forward {
-                SelectionType::Range(
-                    start_column.min(current_cursor_col),
-                    start_column.max(current_cursor_col - 1),
-                )
-            } else {
-                SelectionType::Range(
-                    start_column.min(current_cursor_col - 1),
-                    start_column.max(current_cursor_col),
-                )
-            };
-
             self.cache
                 .entry(start_line)
-                .insert_entry(entry);
+                .insert_entry(SelectionType::Range(
+                    start_column.min(current_cursor_col),
+                    start_column.max(current_cursor_col) - 1,
+                ));
         } else {
             let min_line = start_line.min(current_cursor_line);
             let max_line = start_line.max(current_cursor_line);
@@ -95,7 +86,7 @@ impl Selection {
             for line_num in min_line..=max_line {
                 let entry = match line_num {
                     _ if line_num == min_line => SelectionType::From(min_line_column),
-                    _ if line_num == max_line => SelectionType::To(max_line_column),
+                    _ if line_num == max_line => SelectionType::To(max_line_column - 1),
                     _ => SelectionType::Line,
                 };
 
