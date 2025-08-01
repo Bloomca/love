@@ -14,6 +14,8 @@ impl UIState {
 
                     let line_len = self.get_line_len(new_cursor_line - 1);
                     self.cursor_column = line_len + 1;
+
+                    self.handle_cursor_scrolling();
                 }
             } else {
                 let new_value = self.cursor_column - 1;
@@ -34,6 +36,8 @@ impl UIState {
                     // need to move to the next line
                     self.cursor_column = 1;
                     self.cursor_line += 1;
+
+                    self.handle_cursor_scrolling();
                 }
             } else {
                 self.cursor_column += 1;
@@ -51,6 +55,8 @@ impl UIState {
             } else {
                 self.cursor_line -= 1;
                 self.adjust_cursor_column_after_vertical_nav();
+
+                self.handle_cursor_scrolling();
             }
         }
     }
@@ -67,6 +73,8 @@ impl UIState {
             } else {
                 self.cursor_line += 1;
                 self.adjust_cursor_column_after_vertical_nav();
+
+                self.handle_cursor_scrolling();
             }
         }
     }
@@ -87,6 +95,14 @@ impl UIState {
         }
     }
 
+    pub fn handle_cursor_scrolling(&mut self) {
+        if self.cursor_line < self.editor_scroll_offset + 1 {
+            self.editor_scroll_offset = self.cursor_line - 1;
+        } else if self.cursor_line > self.editor_scroll_offset + self.editor_lines_num {
+            self.editor_scroll_offset = self.cursor_line - self.editor_lines_num;
+        }
+    }
+
     fn adjust_cursor_column_after_vertical_nav(&mut self) {
         // if it is not 0, it means we were pressing up/down before
         if self.vertical_offset_target == 0 {
@@ -95,7 +111,7 @@ impl UIState {
 
         let line_len = self.get_line_len(self.cursor_line - 1);
 
-        if self.vertical_offset_target < line_len {
+        if self.vertical_offset_target < line_len + 1 {
             self.cursor_column = self.vertical_offset_target;
         } else {
             self.cursor_column = line_len + 1;
@@ -124,7 +140,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         ui_state.cursor_move_left();
         ui_state.cursor_move_left();
@@ -146,7 +162,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         ui_state.cursor_move_right();
         ui_state.cursor_move_right();
@@ -175,7 +191,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..5 {
             ui_state.cursor_move_right();
@@ -213,7 +229,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         ui_state.cursor_move_down();
         ui_state.cursor_move_down();
@@ -242,7 +258,7 @@ mod tests {
             vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
         ];
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         ui_state.cursor_move_right();
         ui_state.cursor_move_right();
@@ -286,7 +302,7 @@ mod tests {
         ];
 
         let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0);
+        ui_state.set_editor_offset(30, 0, 50);
 
         ui_state.cursor_move_line_end();
         assert_eq!(ui_state.cursor_column, 6);
@@ -302,5 +318,54 @@ mod tests {
         ui_state.cursor_move_line_end();
         assert_eq!(ui_state.cursor_column, 12);
         assert_eq!(ui_state.cursor_line, 3);
+    }
+
+    #[test]
+    fn moving_scrolls_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+            vec!['T', 'i', 't', 'l', 'e'],
+            vec!['L', 'i', 'n', 'e'],
+            vec![],
+            vec!['E', 'n', 'd'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0, 5);
+
+        assert_eq!(ui_state.editor_lines_num, 3);
+
+        ui_state.cursor_move_down();
+
+        assert_eq!(ui_state.editor_scroll_offset, 0);
+
+        ui_state.cursor_move_down();
+
+        assert_eq!(ui_state.editor_scroll_offset, 0);
+
+        ui_state.cursor_move_down();
+
+        assert_eq!(ui_state.editor_scroll_offset, 1);
+
+        ui_state.cursor_move_line_end();
+        ui_state.cursor_move_right();
+
+        assert_eq!(ui_state.editor_scroll_offset, 2);
+
+        ui_state.cursor_move_up();
+        ui_state.cursor_move_up();
+
+        assert_eq!(ui_state.editor_scroll_offset, 2);
+
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 3);
+
+        ui_state.cursor_move_left();
+
+        assert_eq!(ui_state.editor_scroll_offset, 1);
+
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 2);
     }
 }

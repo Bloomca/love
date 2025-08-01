@@ -11,15 +11,23 @@ use crate::app_state::AppState;
 pub fn render_editor(frame: &mut Frame, area: Rect, app_state: &mut AppState) {
     app_state
         .ui_state
-        .set_editor_offset(area.x as usize, area.y as usize);
+        .set_editor_offset(area.x as usize, area.y as usize, area.height as usize);
 
     let lines_number = app_state.ui_state.lines.len();
     let text: Vec<Line> = app_state
         .ui_state
         .lines
         .iter()
+        .skip(app_state.ui_state.editor_scroll_offset)
+        .take(app_state.ui_state.editor_lines_num)
         .enumerate()
-        .map(|(i, line)| generate_code_line(line.iter().collect::<String>(), i + 1, lines_number))
+        .map(|(i, line)| {
+            generate_code_line(
+                line.iter().collect::<String>(),
+                i + 1 + app_state.ui_state.editor_scroll_offset,
+                lines_number,
+            )
+        })
         .collect();
 
     let block = Block::bordered().title("Editor");
