@@ -27,7 +27,10 @@ impl UIState {
     pub fn remove_previous_character(&mut self) {
         self.vertical_offset_target = 0;
 
-        // TODO: if there is selection, we need to delete it
+        // if we successfully deleted the selection, we don't need to do anything else
+        if self.delete_selection() {
+            return;
+        }
 
         let index = self.cursor_column - 1;
 
@@ -83,7 +86,10 @@ impl UIState {
     pub fn remove_next_character(&mut self) {
         self.vertical_offset_target = 0;
 
-        // TODO: if there is selection, we need to delete it
+        // if we successfully deleted the selection, we don't need to do anything else
+        if self.delete_selection() {
+            return;
+        }
 
         let index = self.cursor_column - 1;
 

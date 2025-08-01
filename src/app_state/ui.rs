@@ -64,8 +64,6 @@ impl Selection {
 
         let (start_line, start_column) = self.start;
 
-        let direction_forward = (current_cursor_line, current_cursor_col) > (start_line, start_column);
-
         if start_line == current_cursor_line {
             self.cache
                 .entry(start_line)
@@ -104,6 +102,18 @@ impl Selection {
                 SelectionType::Range(min_col, max_col) => &column >= min_col && &column <= max_col,
             },
             None => false,
+        }
+    }
+
+    fn get_first_position(&self) -> (usize, usize) {
+        let (start_line, start_column) = self.start;
+        let (end_line, end_column) = self.end;
+        let direction_forward = (end_line, end_column) > (start_line, start_column);
+
+        if direction_forward {
+            self.start
+        } else {
+            self.end
         }
     }
 }
@@ -220,6 +230,51 @@ impl UIState {
     pub fn is_char_selected(&self, line: usize, column: usize) -> bool {
         match &self.selection {
             Some(selection) => selection.is_char_selected(line, column),
+            None => false,
+        }
+    }
+
+    pub fn delete_selection(&mut self) -> bool {
+        match &self.selection {
+            Some(selection) => {
+                let start_line = selection.start.0;
+                let end_line = selection.end.0;
+                let min_line = start_line.min(end_line);
+                let max_line = start_line.max(end_line);
+
+                for line_num in min_line..=max_line {
+                    if let Some(selection_type) = selection.cache.get(&line_num) {
+                        match selection_type {
+                            SelectionType::Line => {
+                                self.lines.remove(line_num);
+                            }
+                            SelectionType::To(selected_col) => {
+                                if let Some(line) = self.lines.get_mut(line_num) {
+                                    line.truncate(*selected_col);
+                                }
+                            }
+                            SelectionType::From(selected_col) => {
+                                if let Some(line) = self.lines.get_mut(line_num) {
+                                    line.drain(0..*selected_col);
+                                }
+                            }
+                            SelectionType::Range(min_col, max_col) => {
+                                if let Some(line) = self.lines.get_mut(line_num) {
+                                    line.drain(*min_col..*max_col);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let (start_line, start_column) = selection.get_first_position();
+
+                self.cursor_column = start_column;
+                self.cursor_line = start_line;
+                self.selection = None;
+
+                true
+            }
             None => false,
         }
     }
