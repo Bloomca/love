@@ -108,7 +108,9 @@ impl UIState {
         if self.cursor_column > current_line_len {
             self.lines.insert(self.cursor_line, vec![]);
 
-            // TODO?? MOVE THE CURSOR?
+            self.cursor_column = 1;
+            self.cursor_line += 1;
+
             self.handle_cursor_scrolling();
         } else {
             match self.lines.get_mut(self.cursor_line - 1) {
@@ -216,7 +218,7 @@ mod tests {
         assert_eq!(String::from_iter(&ui_state.lines[0]), "Hel");
         assert_eq!(String::from_iter(&ui_state.lines[1]), "lo world!");
 
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_line_end();
         ui_state.add_new_line();
 
         assert_eq!(ui_state.cursor_column, 1);
