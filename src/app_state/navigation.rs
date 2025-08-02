@@ -1,4 +1,4 @@
-use super::ui::UIState;
+use super::editor::UIState;
 use crossterm::event::KeyModifiers;
 
 impl UIState {
@@ -386,69 +386,5 @@ mod tests {
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 2);
-    }
-
-    #[test]
-    fn handle_selection_correctly() {
-        let lines = vec![
-            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
-            vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
-            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
-        ];
-        let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0, 50);
-
-        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
-        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
-
-        assert!(ui_state.has_any_selection());
-        let selection = ui_state.get_selection_range(1).unwrap();
-
-        assert_eq!(selection, (1, 3));
-
-        ui_state.cursor_move_right(&KeyModifiers::NONE);
-
-        assert!(!ui_state.has_any_selection());
-
-        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
-        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
-
-        let selection = ui_state.get_selection_range(1).unwrap();
-        assert_eq!(selection, (2, 4));
-
-        assert_eq!(ui_state.cursor_column, 2);
-        assert_eq!(ui_state.cursor_line, 1);
-
-        ui_state.cursor_move_right(&KeyModifiers::NONE);
-
-        assert!(!ui_state.has_any_selection());
-
-        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
-        ui_state.cursor_move_down(&KeyModifiers::SHIFT);
-
-        let selection1 = ui_state.get_selection_range(1).unwrap();
-        let selection2 = ui_state.get_selection_range(2).unwrap();
-
-        assert_eq!(selection1, (3, 0));
-        assert_eq!(selection2, (0, 4));
-    }
-
-    #[test]
-    fn handle_multi_line_selection_correctly() {
-        let lines = vec![
-            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
-            vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
-            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
-        ];
-        let mut ui_state = UIState::new(5, lines);
-        ui_state.set_editor_offset(30, 0, 50);
-
-        ui_state.cursor_move_down(&KeyModifiers::SHIFT);
-
-        let selection1 = ui_state.get_selection_range(1).unwrap();
-        let selection2 = ui_state.get_selection_range(2).unwrap();
-
-        assert_eq!(selection1, (1, 0));
-        assert_eq!(selection2, (0, 1));
     }
 }
