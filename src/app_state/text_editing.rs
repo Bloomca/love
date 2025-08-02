@@ -1,8 +1,12 @@
 use super::ui::UIState;
+use crossterm::event::KeyModifiers;
 
 impl UIState {
     pub fn insert_character(&mut self, character: char) {
         self.vertical_offset_target = 0;
+
+        // after deleting selection, we need to insert the character normally
+        self.delete_selection();
 
         let result = self.lines.get_mut(self.cursor_line - 1);
 
@@ -11,7 +15,8 @@ impl UIState {
                 let index = self.cursor_column - 1;
                 if index <= line.len() {
                     line.insert(index, character);
-                    self.cursor_move_right();
+                    // manually set to have no modifiers, so the newly inserted character is not selected
+                    self.cursor_move_right(&KeyModifiers::NONE);
                 }
             }
             None => {
@@ -22,6 +27,11 @@ impl UIState {
 
     pub fn remove_previous_character(&mut self) {
         self.vertical_offset_target = 0;
+
+        // if we successfully deleted the selection, we don't need to do anything else
+        if self.delete_selection() {
+            return;
+        }
 
         let index = self.cursor_column - 1;
 
@@ -68,7 +78,7 @@ impl UIState {
                 self.handle_cursor_scrolling();
             } else if index <= line.len() {
                 line.remove(index - 1);
-                self.cursor_move_left();
+                self.cursor_move_left(&KeyModifiers::NONE);
             }
         }
     }
@@ -76,6 +86,11 @@ impl UIState {
     // if `delete` is pressed, we delete the next character
     pub fn remove_next_character(&mut self) {
         self.vertical_offset_target = 0;
+
+        // if we successfully deleted the selection, we don't need to do anything else
+        if self.delete_selection() {
+            return;
+        }
 
         let index = self.cursor_column - 1;
 
@@ -102,6 +117,9 @@ impl UIState {
 
     pub fn add_new_line(&mut self) {
         self.vertical_offset_target = 0;
+
+        // after deleting the selection, we need to insert the newline as usual
+        self.delete_selection();
 
         let current_line_len = self.get_line_len(self.cursor_line - 1);
 
@@ -145,7 +163,7 @@ mod tests {
         ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..6 {
-            ui_state.cursor_move_right();
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
         }
 
         ui_state.insert_character('m');
@@ -166,7 +184,7 @@ mod tests {
         ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..6 {
-            ui_state.cursor_move_right();
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
         }
 
         // intentionally delete more than 6 characters
@@ -206,9 +224,9 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_right();
-        ui_state.cursor_move_right();
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         ui_state.add_new_line();
 
@@ -238,7 +256,7 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         ui_state.remove_previous_character();
 
@@ -247,10 +265,10 @@ mod tests {
         assert_eq!(ui_state.cursor_line, 1);
 
         // bring it to the first character
-        ui_state.cursor_move_up();
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
         // forget the vertical offset
-        ui_state.cursor_move_left();
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         // make sure we are at the beginning of the second line
         assert_eq!(ui_state.cursor_column, 1);
@@ -279,7 +297,7 @@ mod tests {
         ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..12 {
-            ui_state.cursor_move_right();
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
         }
 
         // make sure we are at the beginning of the first line
@@ -299,7 +317,7 @@ mod tests {
         );
 
         // navigate to the end of the last line
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 24);
         assert_eq!(ui_state.cursor_line, 1);
@@ -309,5 +327,109 @@ mod tests {
 
         assert_eq!(ui_state.cursor_column, 24);
         assert_eq!(ui_state.cursor_line, 1);
+    }
+
+    #[test]
+    fn handles_selection_delete_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0, 50);
+
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+
+        ui_state.remove_previous_character();
+
+        assert_eq!(ui_state.cursor_column, 4);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "Hel world!");
+
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+
+        ui_state.remove_next_character();
+
+        assert_eq!(ui_state.cursor_column, 2);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "H world!");
+
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_down(&KeyModifiers::SHIFT);
+
+        ui_state.remove_next_character();
+
+        assert_eq!(ui_state.cursor_column, 4);
+        assert_eq!(ui_state.cursor_line, 2);
+
+        assert_eq!(String::from_iter(&ui_state.lines[1]), "Anocription");
+
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+
+        ui_state.insert_character('R');
+        ui_state.insert_character('O');
+        ui_state.insert_character('O');
+        ui_state.insert_character('T');
+
+        assert_eq!(ui_state.cursor_column, 8);
+        assert_eq!(ui_state.cursor_line, 2);
+
+        assert_eq!(String::from_iter(&ui_state.lines[1]), "AnoROOTiption");
+
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+
+        ui_state.add_new_line();
+
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 3);
+
+        assert_eq!(String::from_iter(&ui_state.lines[1]), "AnoRO");
+        assert_eq!(String::from_iter(&ui_state.lines[2]), "iption");
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "H world!");
+
+        ui_state.cursor_move_line_end();
+        ui_state.add_new_line();
+
+        ui_state.insert_character('S');
+        ui_state.insert_character('o');
+        ui_state.insert_character('m');
+        ui_state.insert_character('e');
+        ui_state.insert_character('t');
+        ui_state.insert_character('h');
+        ui_state.insert_character('i');
+        ui_state.insert_character('n');
+        ui_state.insert_character('g');
+
+        assert_eq!(String::from_iter(&ui_state.lines[3]), "Something");
+
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
+
+        ui_state.cursor_move_up(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_up(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_up(&KeyModifiers::SHIFT);
+
+        ui_state.remove_previous_character();
+
+        assert_eq!(ui_state.cursor_column, 8);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        ui_state.insert_character(' ');
+
+        assert_eq!(ui_state.lines.len(), 1);
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "H world ng");
     }
 }

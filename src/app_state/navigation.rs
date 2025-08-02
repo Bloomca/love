@@ -1,13 +1,17 @@
 use super::ui::UIState;
+use crossterm::event::KeyModifiers;
 
 impl UIState {
-    pub fn cursor_move_left(&mut self) {
+    pub fn cursor_move_left(&mut self, modifiers: &KeyModifiers) {
         if self.should_show_cursor {
             self.vertical_offset_target = 0;
+
+            self.start_selection(modifiers);
 
             if self.cursor_column == 1 {
                 if self.cursor_line == 1 {
                     // we already at the beginning of the file, nothing to do
+                    return;
                 } else {
                     let new_cursor_line = self.cursor_line - 1;
                     self.cursor_line = new_cursor_line;
@@ -21,17 +25,22 @@ impl UIState {
                 let new_value = self.cursor_column - 1;
                 self.cursor_column = new_value;
             }
+
+            self.adjust_selection();
         }
     }
 
-    pub fn cursor_move_right(&mut self) {
+    pub fn cursor_move_right(&mut self, modifiers: &KeyModifiers) {
         if self.should_show_cursor {
             self.vertical_offset_target = 0;
+
+            self.start_selection(modifiers);
 
             let line_len = self.get_line_len(self.cursor_line - 1);
             if self.cursor_column > line_len {
                 if self.cursor_line >= self.lines.len() {
                     // we are on the last line, do nothing
+                    return;
                 } else {
                     // need to move to the next line
                     self.cursor_column = 1;
@@ -42,11 +51,15 @@ impl UIState {
             } else {
                 self.cursor_column += 1;
             }
+
+            self.adjust_selection();
         }
     }
 
-    pub fn cursor_move_up(&mut self) {
+    pub fn cursor_move_up(&mut self, modifiers: &KeyModifiers) {
         if self.should_show_cursor {
+            self.start_selection(modifiers);
+
             if self.cursor_line == 1 {
                 if self.vertical_offset_target == 0 {
                     self.vertical_offset_target = self.cursor_column;
@@ -58,11 +71,15 @@ impl UIState {
 
                 self.handle_cursor_scrolling();
             }
+
+            self.adjust_selection();
         }
     }
 
-    pub fn cursor_move_down(&mut self) {
+    pub fn cursor_move_down(&mut self, modifiers: &KeyModifiers) {
         if self.should_show_cursor {
+            self.start_selection(modifiers);
+
             if self.cursor_line == self.lines.len() {
                 if self.vertical_offset_target == 0 {
                     self.vertical_offset_target = self.cursor_column;
@@ -76,6 +93,8 @@ impl UIState {
 
                 self.handle_cursor_scrolling();
             }
+
+            self.adjust_selection();
         }
     }
 
@@ -142,13 +161,13 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_left();
-        ui_state.cursor_move_left();
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
 
-        ui_state.cursor_move_up();
-        ui_state.cursor_move_up();
-        ui_state.cursor_move_up();
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 1);
@@ -164,21 +183,21 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_right();
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 3);
 
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 2);
 
-        ui_state.cursor_move_down();
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_line, 3);
 
-        ui_state.cursor_move_up();
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_line, 2);
     }
@@ -194,27 +213,27 @@ mod tests {
         ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..5 {
-            ui_state.cursor_move_right();
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
         }
 
         assert_eq!(ui_state.cursor_column, 6);
         assert_eq!(ui_state.cursor_line, 1);
 
         // should move to the next line
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 2);
 
         // should move to the next line
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 3);
 
         // there is no lines after this one
         for _ in 0..15 {
-            ui_state.cursor_move_right();
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
         }
 
         assert_eq!(ui_state.cursor_column, 12);
@@ -231,20 +250,20 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_down();
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 3);
 
         // should go to the previous line
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 2);
 
         // should go to the previous line
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 6);
         assert_eq!(ui_state.cursor_line, 1);
@@ -260,34 +279,34 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_right();
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 3);
         assert_eq!(ui_state.cursor_line, 1);
 
-        ui_state.cursor_move_up();
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 1);
 
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 2);
 
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 3);
         assert_eq!(ui_state.cursor_line, 3);
 
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 12);
         assert_eq!(ui_state.cursor_line, 3);
 
-        ui_state.cursor_move_up();
-        ui_state.cursor_move_up();
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.cursor_column, 3);
         assert_eq!(ui_state.cursor_line, 1);
@@ -308,8 +327,8 @@ mod tests {
         assert_eq!(ui_state.cursor_column, 6);
         assert_eq!(ui_state.cursor_line, 1);
 
-        ui_state.cursor_move_down();
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         ui_state.cursor_move_line_start();
         assert_eq!(ui_state.cursor_column, 1);
@@ -336,36 +355,100 @@ mod tests {
 
         assert_eq!(ui_state.editor_lines_num, 3);
 
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.editor_scroll_offset, 0);
 
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.editor_scroll_offset, 0);
 
-        ui_state.cursor_move_down();
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.editor_scroll_offset, 1);
 
         ui_state.cursor_move_line_end();
-        ui_state.cursor_move_right();
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.editor_scroll_offset, 2);
 
-        ui_state.cursor_move_up();
-        ui_state.cursor_move_up();
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
+        ui_state.cursor_move_up(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.editor_scroll_offset, 2);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 3);
 
-        ui_state.cursor_move_left();
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.editor_scroll_offset, 1);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 2);
+    }
+
+    #[test]
+    fn handle_selection_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0, 50);
+
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+
+        assert!(ui_state.has_any_selection());
+        let selection = ui_state.get_selection_range(1).unwrap();
+
+        assert_eq!(selection, (1, 3));
+
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+
+        assert!(!ui_state.has_any_selection());
+
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+
+        let selection = ui_state.get_selection_range(1).unwrap();
+        assert_eq!(selection, (2, 4));
+
+        assert_eq!(ui_state.cursor_column, 2);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+
+        assert!(!ui_state.has_any_selection());
+
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_down(&KeyModifiers::SHIFT);
+
+        let selection1 = ui_state.get_selection_range(1).unwrap();
+        let selection2 = ui_state.get_selection_range(2).unwrap();
+
+        assert_eq!(selection1, (3, 0));
+        assert_eq!(selection2, (0, 4));
+    }
+
+    #[test]
+    fn handle_multi_line_selection_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0, 50);
+
+        ui_state.cursor_move_down(&KeyModifiers::SHIFT);
+
+        let selection1 = ui_state.get_selection_range(1).unwrap();
+        let selection2 = ui_state.get_selection_range(2).unwrap();
+
+        assert_eq!(selection1, (1, 0));
+        assert_eq!(selection2, (0, 1));
     }
 }
