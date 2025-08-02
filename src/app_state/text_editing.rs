@@ -1,3 +1,4 @@
+use super::app::Config;
 use super::ui::UIState;
 use crossterm::event::KeyModifiers;
 
@@ -123,10 +124,15 @@ impl UIState {
 
         let current_line_len = self.get_line_len(self.cursor_line - 1);
 
-        if self.cursor_column > current_line_len {
-            self.lines.insert(self.cursor_line, vec![]);
+        let whitespaces = match self.lines.get(self.cursor_line - 1) {
+            Some(line) => self.calculate_whitespace_num(line),
+            None => 0,
+        };
 
-            self.cursor_column = 1;
+        if self.cursor_column > current_line_len {
+            self.lines.insert(self.cursor_line, vec![' '; whitespaces]);
+
+            self.cursor_column = 1 + whitespaces;
             self.cursor_line += 1;
 
             self.handle_cursor_scrolling();
@@ -134,9 +140,13 @@ impl UIState {
             match self.lines.get_mut(self.cursor_line - 1) {
                 Some(line) => {
                     let new_line = line.split_off(self.cursor_column - 1);
-                    self.lines.insert(self.cursor_line, new_line);
+
+                    let prefixed_line =
+                        vec![' '; whitespaces].into_iter().chain(new_line).collect();
+
+                    self.lines.insert(self.cursor_line, prefixed_line);
                     self.cursor_line += 1;
-                    self.cursor_column = 1;
+                    self.cursor_column = 1 + whitespaces;
 
                     self.handle_cursor_scrolling();
                 }
@@ -145,6 +155,20 @@ impl UIState {
                 }
             }
         }
+    }
+
+    pub fn handle_tab_key(&mut self, config: &Config) {
+        if config.tabs_to_spaces {
+            for _ in 0..config.whitespaces_amount {
+                self.insert_character(' ');
+            }
+        } else {
+            self.insert_character('\t');
+        }
+    }
+
+    fn calculate_whitespace_num(&self, line: &[char]) -> usize {
+        line.iter().take_while(|c| c.is_whitespace()).count()
     }
 }
 
@@ -431,5 +455,32 @@ mod tests {
 
         assert_eq!(ui_state.lines.len(), 1);
         assert_eq!(String::from_iter(&ui_state.lines[0]), "H world ng");
+    }
+
+    #[test]
+    fn handles_newline_with_whitespaces() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        let config = Config::new();
+        ui_state.set_editor_offset(30, 0, 50);
+
+        ui_state.handle_tab_key(&config);
+
+        assert_eq!(ui_state.cursor_column, 5);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "    Hello world!");
+
+        ui_state.cursor_move_line_end();
+        ui_state.add_new_line();
+
+        assert_eq!(ui_state.cursor_column, 5);
+        assert_eq!(ui_state.cursor_line, 2);
+
+        assert_eq!(String::from_iter(&ui_state.lines[1]), "    ");
     }
 }

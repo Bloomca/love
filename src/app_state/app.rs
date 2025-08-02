@@ -11,6 +11,21 @@ pub struct AppState {
     pub working_directory: PathBuf,
     pub file_tree: HashMap<PathBuf, Vec<FileTreeEntry>>,
     pub ui_state: UIState,
+    pub config: Config,
+}
+
+pub struct Config {
+    pub tabs_to_spaces: bool,
+    pub whitespaces_amount: usize,
+}
+
+impl Config {
+    pub fn new() -> Self {
+        Config {
+            tabs_to_spaces: true,
+            whitespaces_amount: 4,
+        }
+    }
 }
 
 impl AppState {
@@ -22,6 +37,7 @@ impl AppState {
             working_directory,
             file_tree: HashMap::new(),
             ui_state: UIState::new(lines_number.to_string().len(), lines),
+            config: Config::new(),
         }
     }
 
