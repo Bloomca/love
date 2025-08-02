@@ -441,4 +441,24 @@ mod tests {
         assert!(ui_state.is_char_selected(2, 3));
         assert!(!ui_state.is_char_selected(2, 4));
     }
+
+    #[test]
+    fn handle_multi_line_selection_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0, 50);
+
+        ui_state.cursor_move_down(&KeyModifiers::SHIFT);
+
+        println!("{:#?}", ui_state.selection);
+
+        assert!(ui_state.is_char_selected(1, 1));
+        assert!(ui_state.is_char_selected(1, 2));
+        assert!(ui_state.is_char_selected(2, 0));
+        assert!(!ui_state.is_char_selected(2, 2));
+    }
 }

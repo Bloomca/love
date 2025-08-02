@@ -37,17 +37,19 @@ impl FileTreeEntry {
     }
 }
 
-enum SelectionType {
+#[derive(Debug)]
+pub enum SelectionType {
     Line,
     To(usize),
     From(usize),
     Range(usize, usize),
 }
 
-struct Selection {
-    start: (usize, usize),
-    end: (usize, usize),
-    cache: HashMap<usize, SelectionType>,
+#[derive(Debug)]
+pub struct Selection {
+    pub start: (usize, usize),
+    pub end: (usize, usize),
+    pub cache: HashMap<usize, SelectionType>,
 }
 
 impl Selection {
@@ -60,6 +62,10 @@ impl Selection {
     }
 
     fn set_end(&mut self, current_cursor_line: usize, current_cursor_col: usize) {
+        // we recalculate cache completely in order to avoid clearing
+        // it atomically
+        self.cache = HashMap::new();
+
         self.end = (current_cursor_line, current_cursor_col);
 
         let (start_line, start_column) = self.start;
@@ -69,7 +75,7 @@ impl Selection {
                 .entry(start_line)
                 .insert_entry(SelectionType::Range(
                     start_column.min(current_cursor_col),
-                    start_column.max(current_cursor_col) - 1,
+                    start_column.max(current_cursor_col),
                 ));
         } else {
             let min_line = start_line.min(current_cursor_line);
@@ -84,7 +90,7 @@ impl Selection {
             for line_num in min_line..=max_line {
                 let entry = match line_num {
                     _ if line_num == min_line => SelectionType::From(min_line_column),
-                    _ if line_num == max_line => SelectionType::To(max_line_column - 1),
+                    _ if line_num == max_line => SelectionType::To(max_line_column),
                     _ => SelectionType::Line,
                 };
 
@@ -97,11 +103,35 @@ impl Selection {
         match self.cache.get(&line) {
             Some(selection_type) => match selection_type {
                 SelectionType::Line => true,
-                SelectionType::To(selected_col) => selected_col >= &column,
+                SelectionType::To(selected_col) => selected_col > &column,
                 SelectionType::From(selected_col) => selected_col <= &column,
-                SelectionType::Range(min_col, max_col) => &column >= min_col && &column <= max_col,
+                SelectionType::Range(min_col, max_col) => &column >= min_col && &column < max_col,
             },
             None => false,
+        }
+    }
+
+    fn is_line_selected(&self, line: usize) -> bool {
+        match self.cache.get(&line) {
+            Some(selection_type) => match selection_type {
+                SelectionType::Line => true,
+                SelectionType::To(_) => false,
+                SelectionType::From(_) => false,
+                SelectionType::Range(_, _) => false,
+            },
+            None => false,
+        }
+    }
+
+    fn get_selection_range(&self, line: usize) -> Option<(usize, usize)> {
+        match self.cache.get(&line) {
+            Some(selection_type) => match selection_type {
+                SelectionType::Line => None,
+                SelectionType::To(column) => Some((0, *column)),
+                SelectionType::From(column) => Some((*column, 0)),
+                SelectionType::Range(min_col, max_col) => Some((*min_col, *max_col)),
+            },
+            None => None,
         }
     }
 
@@ -147,7 +177,7 @@ pub struct UIState {
     /// or insert a new character.
     pub(super) vertical_offset_target: usize,
 
-    selection: Option<Selection>,
+    pub selection: Option<Selection>,
 }
 
 impl UIState {
@@ -231,6 +261,30 @@ impl UIState {
         match &self.selection {
             Some(selection) => selection.is_char_selected(line, column),
             None => false,
+        }
+    }
+
+    /// a single check to see if we have _any_ selection
+    pub fn has_any_selection(&self) -> bool {
+        self.selection.is_some()
+    }
+
+    /// a single check to see if the entire line is selected
+    pub fn is_entire_line_selected(&self, line: usize) -> bool {
+        match &self.selection {
+            Some(selection) => selection.is_line_selected(line),
+            None => false,
+        }
+    }
+
+    /// Get selection range -- intended to be called once per line
+    /// and is not meant to return range of the full line.
+    ///
+    /// To check if the entire line is selected, call `is_entire_line_selected` method.
+    pub fn get_selection_range(&self, line: usize) -> Option<(usize, usize)> {
+        match &self.selection {
+            Some(selection) => selection.get_selection_range(line),
+            None => None,
         }
     }
 
