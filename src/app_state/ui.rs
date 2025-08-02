@@ -272,9 +272,9 @@ impl UIState {
                         first_line.append(&mut last_line);
                     }
 
-                    let lines_between = max_line - min_line;
+                    let lines_between = max_line - min_line - 1;
                     // it means that we have some lines we need to completely remove
-                    if lines_between > 1 {
+                    if lines_between > 0 {
                         for i in 0..lines_between {
                             self.lines.remove(max_line - i - 1);
                         }

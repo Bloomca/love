@@ -5,7 +5,8 @@ impl UIState {
     pub fn insert_character(&mut self, character: char) {
         self.vertical_offset_target = 0;
 
-        // TODO: delete selection
+        // after deleting selection, we need to insert the character normally
+        self.delete_selection();
 
         let result = self.lines.get_mut(self.cursor_line - 1);
 
@@ -117,7 +118,8 @@ impl UIState {
     pub fn add_new_line(&mut self) {
         self.vertical_offset_target = 0;
 
-        // TODO: if there is selection, we need to delete it
+        // after deleting the selection, we need to insert the newline as usual
+        self.delete_selection();
 
         let current_line_len = self.get_line_len(self.cursor_line - 1);
 
@@ -366,13 +368,70 @@ mod tests {
         ui_state.cursor_move_right(&KeyModifiers::NONE);
         ui_state.cursor_move_down(&KeyModifiers::SHIFT);
 
-        println!("{:#?}", ui_state.selection);
-
         ui_state.remove_next_character();
 
         assert_eq!(ui_state.cursor_column, 4);
         assert_eq!(ui_state.cursor_line, 2);
 
         assert_eq!(String::from_iter(&ui_state.lines[1]), "Anocription");
+
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+
+        ui_state.insert_character('R');
+        ui_state.insert_character('O');
+        ui_state.insert_character('O');
+        ui_state.insert_character('T');
+
+        assert_eq!(ui_state.cursor_column, 8);
+        assert_eq!(ui_state.cursor_line, 2);
+
+        assert_eq!(String::from_iter(&ui_state.lines[1]), "AnoROOTiption");
+
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+
+        ui_state.add_new_line();
+
+        assert_eq!(ui_state.cursor_column, 1);
+        assert_eq!(ui_state.cursor_line, 3);
+
+        assert_eq!(String::from_iter(&ui_state.lines[1]), "AnoRO");
+        assert_eq!(String::from_iter(&ui_state.lines[2]), "iption");
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "H world!");
+
+        ui_state.cursor_move_line_end();
+        ui_state.add_new_line();
+
+        ui_state.insert_character('S');
+        ui_state.insert_character('o');
+        ui_state.insert_character('m');
+        ui_state.insert_character('e');
+        ui_state.insert_character('t');
+        ui_state.insert_character('h');
+        ui_state.insert_character('i');
+        ui_state.insert_character('n');
+        ui_state.insert_character('g');
+
+        assert_eq!(String::from_iter(&ui_state.lines[3]), "Something");
+
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
+        ui_state.cursor_move_left(&KeyModifiers::NONE);
+
+        ui_state.cursor_move_up(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_up(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_up(&KeyModifiers::SHIFT);
+
+        print!("{:#?}", ui_state.selection);
+
+        ui_state.remove_previous_character();
+
+        assert_eq!(ui_state.cursor_column, 8);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        ui_state.insert_character(' ');
+
+        assert_eq!(ui_state.lines.len(), 1);
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "H world ng");
     }
 }
