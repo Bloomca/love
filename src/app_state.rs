@@ -1,7 +1,7 @@
 mod app;
+mod editor;
 mod navigation;
-mod text_editing;
-mod ui;
+mod selection;
 
 pub use app::AppState;
-pub use ui::FileTreeEntry;
+pub use editor::FileTreeEntry;

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use super::ui::{FileTreeEntry, UIState};
+use super::editor::{FileTreeEntry, UIState};
 
 pub struct AppState {
     /// Directory of the entire project, can only be a single one
