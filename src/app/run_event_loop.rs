@@ -33,6 +33,7 @@ pub(super) fn run(
                     KeyCode::Backspace => app_state.ui_state.remove_previous_character(),
                     KeyCode::Delete => app_state.ui_state.remove_next_character(),
                     KeyCode::Enter => app_state.ui_state.add_new_line(),
+                    KeyCode::Tab => app_state.ui_state.handle_tab_key(&app_state.config),
                     _ => {}
                 }
             }
