@@ -138,7 +138,7 @@ fn generate_line_with_selection(
 
         if max_col > 0 {
             if max_col > line.len() {
-                 result.push(Span::styled(
+                result.push(Span::styled(
                     line[(min_col - 1)..line.len()].iter().collect::<String>(),
                     Style::new().bg(Color::Blue),
                 ));
@@ -147,7 +147,7 @@ fn generate_line_with_selection(
                     line[(min_col - 1)..max_col].iter().collect::<String>(),
                     Style::new().bg(Color::Blue),
                 ));
-                result.push(Span::raw(line[max_col..].iter().collect::<String>()));        
+                result.push(Span::raw(line[max_col..].iter().collect::<String>()));
             }
         } else {
             result.push(Span::styled(
