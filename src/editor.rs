@@ -83,9 +83,9 @@ fn generate_styled_code_line(
     }
 
     if let Some((min_col, max_col)) = app_state.ui_state.get_selection_range(current_line_num) {
-        return generate_line_with_selection(line, min_col, max_col);
+        generate_line_with_selection(line, min_col, max_col)
     } else {
-        return generate_line_with_no_selection(line);
+        generate_line_with_no_selection(line)
     }
 }
 
