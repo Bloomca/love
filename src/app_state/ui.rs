@@ -37,19 +37,17 @@ impl FileTreeEntry {
     }
 }
 
-#[derive(Debug)]
-pub enum SelectionType {
+enum SelectionType {
     Line,
     To(usize),
     From(usize),
     Range(usize, usize),
 }
 
-#[derive(Debug)]
-pub struct Selection {
-    pub start: (usize, usize),
-    pub end: (usize, usize),
-    pub cache: HashMap<usize, SelectionType>,
+struct Selection {
+    start: (usize, usize),
+    end: (usize, usize),
+    cache: HashMap<usize, SelectionType>,
 }
 
 impl Selection {
@@ -96,18 +94,6 @@ impl Selection {
 
                 self.cache.entry(line_num).insert_entry(entry);
             }
-        }
-    }
-
-    fn is_char_selected(&self, line: usize, column: usize) -> bool {
-        match self.cache.get(&line) {
-            Some(selection_type) => match selection_type {
-                SelectionType::Line => true,
-                SelectionType::To(selected_col) => selected_col > &column,
-                SelectionType::From(selected_col) => selected_col <= &column,
-                SelectionType::Range(min_col, max_col) => &column >= min_col && &column < max_col,
-            },
-            None => false,
         }
     }
 
@@ -177,7 +163,7 @@ pub struct UIState {
     /// or insert a new character.
     pub(super) vertical_offset_target: usize,
 
-    pub selection: Option<Selection>,
+    selection: Option<Selection>,
 }
 
 impl UIState {
@@ -254,13 +240,6 @@ impl UIState {
             } else {
                 selection.set_end(self.cursor_line, self.cursor_column);
             }
-        }
-    }
-
-    pub fn is_char_selected(&self, line: usize, column: usize) -> bool {
-        match &self.selection {
-            Some(selection) => selection.is_char_selected(line, column),
-            None => false,
         }
     }
 

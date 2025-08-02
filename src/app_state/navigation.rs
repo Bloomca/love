@@ -401,45 +401,36 @@ mod tests {
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
 
-        assert!(ui_state.is_char_selected(1, 1));
-        assert!(ui_state.is_char_selected(1, 2));
-        assert!(!ui_state.is_char_selected(1, 3));
+        assert!(ui_state.has_any_selection());
+        let selection = ui_state.get_selection_range(1).unwrap();
+
+        assert_eq!(selection, (1, 3));
 
         ui_state.cursor_move_right(&KeyModifiers::NONE);
 
-        assert!(!ui_state.is_char_selected(1, 1));
-        assert!(!ui_state.is_char_selected(1, 2));
-        assert!(!ui_state.is_char_selected(1, 3));
+        assert!(!ui_state.has_any_selection());
 
         ui_state.cursor_move_left(&KeyModifiers::SHIFT);
         ui_state.cursor_move_left(&KeyModifiers::SHIFT);
 
-        assert!(!ui_state.is_char_selected(1, 1));
-        assert!(ui_state.is_char_selected(1, 2));
-        assert!(ui_state.is_char_selected(1, 3));
+        let selection = ui_state.get_selection_range(1).unwrap();
+        assert_eq!(selection, (2, 4));
 
         assert_eq!(ui_state.cursor_column, 2);
         assert_eq!(ui_state.cursor_line, 1);
 
         ui_state.cursor_move_right(&KeyModifiers::NONE);
 
-        assert_eq!(ui_state.cursor_column, 3);
-        assert_eq!(ui_state.cursor_line, 1);
-        assert!(!ui_state.is_char_selected(1, 2));
-        assert!(!ui_state.is_char_selected(1, 3));
+        assert!(!ui_state.has_any_selection());
 
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
         ui_state.cursor_move_down(&KeyModifiers::SHIFT);
 
-        assert!(!ui_state.is_char_selected(1, 1));
-        assert!(!ui_state.is_char_selected(1, 2));
-        assert!(ui_state.is_char_selected(1, 3));
+        let selection1 = ui_state.get_selection_range(1).unwrap();
+        let selection2 = ui_state.get_selection_range(2).unwrap();
 
-        assert!(ui_state.is_char_selected(1, 12));
-        assert!(ui_state.is_char_selected(2, 1));
-        assert!(ui_state.is_char_selected(2, 2));
-        assert!(ui_state.is_char_selected(2, 3));
-        assert!(!ui_state.is_char_selected(2, 4));
+        assert_eq!(selection1, (3, 0));
+        assert_eq!(selection2, (0, 4));
     }
 
     #[test]
@@ -454,11 +445,10 @@ mod tests {
 
         ui_state.cursor_move_down(&KeyModifiers::SHIFT);
 
-        println!("{:#?}", ui_state.selection);
+        let selection1 = ui_state.get_selection_range(1).unwrap();
+        let selection2 = ui_state.get_selection_range(2).unwrap();
 
-        assert!(ui_state.is_char_selected(1, 1));
-        assert!(ui_state.is_char_selected(1, 2));
-        assert!(ui_state.is_char_selected(2, 0));
-        assert!(!ui_state.is_char_selected(2, 2));
+        assert_eq!(selection1, (1, 0));
+        assert_eq!(selection2, (0, 1));
     }
 }
