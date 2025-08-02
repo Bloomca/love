@@ -422,8 +422,6 @@ mod tests {
         ui_state.cursor_move_up(&KeyModifiers::SHIFT);
         ui_state.cursor_move_up(&KeyModifiers::SHIFT);
 
-        print!("{:#?}", ui_state.selection);
-
         ui_state.remove_previous_character();
 
         assert_eq!(ui_state.cursor_column, 8);

@@ -37,19 +37,17 @@ impl FileTreeEntry {
     }
 }
 
-#[derive(Debug)]
-pub enum SelectionType {
+enum SelectionType {
     Line,
     To(usize),
     From(usize),
     Range(usize, usize),
 }
 
-#[derive(Debug)]
-pub struct Selection {
-    pub start: (usize, usize),
-    pub end: (usize, usize),
-    pub cache: HashMap<usize, SelectionType>,
+struct Selection {
+    start: (usize, usize),
+    end: (usize, usize),
+    cache: HashMap<usize, SelectionType>,
 }
 
 impl Selection {
@@ -149,7 +147,7 @@ pub struct UIState {
     /// or insert a new character.
     pub(super) vertical_offset_target: usize,
 
-    pub selection: Option<Selection>,
+    selection: Option<Selection>,
 }
 
 impl UIState {
