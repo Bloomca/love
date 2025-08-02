@@ -125,7 +125,7 @@ impl UIState {
         let current_line_len = self.get_line_len(self.cursor_line - 1);
 
         let whitespaces = match self.lines.get(self.cursor_line - 1) {
-            Some(line) => self.calculate_whitespace_num(line),
+            Some(line) => Self::calculate_whitespace_num(line),
             None => 0,
         };
 
@@ -167,7 +167,7 @@ impl UIState {
         }
     }
 
-    fn calculate_whitespace_num(&self, line: &[char]) -> usize {
+    pub fn calculate_whitespace_num(line: &[char]) -> usize {
         line.iter().take_while(|c| c.is_whitespace()).count()
     }
 }
