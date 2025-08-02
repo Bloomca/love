@@ -37,17 +37,19 @@ impl FileTreeEntry {
     }
 }
 
-enum SelectionType {
+#[derive(Debug)]
+pub enum SelectionType {
     Line,
     To(usize),
     From(usize),
     Range(usize, usize),
 }
 
-struct Selection {
-    start: (usize, usize),
-    end: (usize, usize),
-    cache: HashMap<usize, SelectionType>,
+#[derive(Debug)]
+pub struct Selection {
+    pub start: (usize, usize),
+    pub end: (usize, usize),
+    pub cache: HashMap<usize, SelectionType>,
 }
 
 impl Selection {
@@ -147,7 +149,7 @@ pub struct UIState {
     /// or insert a new character.
     pub(super) vertical_offset_target: usize,
 
-    selection: Option<Selection>,
+    pub selection: Option<Selection>,
 }
 
 impl UIState {
@@ -237,32 +239,44 @@ impl UIState {
     pub fn delete_selection(&mut self) -> bool {
         match &self.selection {
             Some(selection) => {
-                let start_line = selection.start.0;
-                let end_line = selection.end.0;
-                let min_line = start_line.min(end_line);
-                let max_line = start_line.max(end_line);
+                let (start_line, start_column) = selection.start;
+                let (end_line, end_column) = selection.end;
+                let min_line = start_line.min(end_line) - 1;
+                let max_line = start_line.max(end_line) - 1;
 
-                for line_num in min_line..=max_line {
-                    if let Some(selection_type) = selection.cache.get(&line_num) {
-                        match selection_type {
-                            SelectionType::Line => {
-                                self.lines.remove(line_num);
-                            }
-                            SelectionType::To(selected_col) => {
-                                if let Some(line) = self.lines.get_mut(line_num) {
-                                    line.truncate(*selected_col);
-                                }
-                            }
-                            SelectionType::From(selected_col) => {
-                                if let Some(line) = self.lines.get_mut(line_num) {
-                                    line.drain(0..*selected_col);
-                                }
-                            }
-                            SelectionType::Range(min_col, max_col) => {
-                                if let Some(line) = self.lines.get_mut(line_num) {
-                                    line.drain(*min_col..*max_col);
-                                }
-                            }
+                if min_line == max_line {
+                    // if the line is equal, we need to remove selected range
+                    let min_column = start_column.min(end_column);
+                    let max_column = start_column.max(end_column);
+
+                    if let Some(line) = self.lines.get_mut(min_line) {
+                        line.drain((min_column - 1)..(max_column - 1));
+                    }
+                } else {
+                    // if there are multiple lines, we need to get the last line, remove selected elements;
+                    // get the first line, remove selected elements; append last line to the first
+                    // if there are lines between first and last, we need to remove them
+
+                    let mut last_line = self.lines.remove(max_line);
+
+                    let (last_line_col, first_line_col) = if end_line > start_line {
+                        (end_column, start_column)
+                    } else {
+                        (start_column, end_column)
+                    };
+
+                    last_line.drain(0..(last_line_col - 1));
+
+                    if let Some(first_line) = self.lines.get_mut(min_line) {
+                        first_line.truncate(first_line_col - 1);
+                        first_line.append(&mut last_line);
+                    }
+
+                    let lines_between = max_line - min_line;
+                    // it means that we have some lines we need to completely remove
+                    if lines_between > 1 {
+                        for i in 0..lines_between {
+                            self.lines.remove(max_line - i - 1);
                         }
                     }
                 }

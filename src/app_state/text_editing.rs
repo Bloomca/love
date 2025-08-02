@@ -326,4 +326,53 @@ mod tests {
         assert_eq!(ui_state.cursor_column, 24);
         assert_eq!(ui_state.cursor_line, 1);
     }
+
+    #[test]
+    fn handles_selection_delete_correctly() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0, 50);
+
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_right(&KeyModifiers::SHIFT);
+
+        ui_state.remove_previous_character();
+
+        assert_eq!(ui_state.cursor_column, 4);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "Hel world!");
+
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+        ui_state.cursor_move_left(&KeyModifiers::SHIFT);
+
+        ui_state.remove_next_character();
+
+        assert_eq!(ui_state.cursor_column, 2);
+        assert_eq!(ui_state.cursor_line, 1);
+
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "H world!");
+
+        ui_state.cursor_move_down(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_down(&KeyModifiers::SHIFT);
+
+        println!("{:#?}", ui_state.selection);
+
+        ui_state.remove_next_character();
+
+        assert_eq!(ui_state.cursor_column, 4);
+        assert_eq!(ui_state.cursor_line, 2);
+
+        assert_eq!(String::from_iter(&ui_state.lines[1]), "Anocription");
+    }
 }
