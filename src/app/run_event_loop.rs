@@ -23,6 +23,9 @@ pub(super) fn run(
                         restore_terminal(terminal).expect("Could not shut down the app gracefully, terminal might not work properly");
                         return Ok(());
                     }
+                    KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        app_state.ui_state.handle_copy();
+                    }
                     KeyCode::Char(character) => app_state.ui_state.insert_character(character),
                     KeyCode::Home => app_state.ui_state.cursor_move_line_start(),
                     KeyCode::Left => app_state.ui_state.cursor_move_left(&key_event.modifiers),
@@ -38,6 +41,7 @@ pub(super) fn run(
                     _ => {}
                 }
             }
+            Event::Paste(data) => app_state.ui_state.handle_paste(data),
             _ => {}
         }
     }

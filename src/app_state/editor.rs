@@ -1,3 +1,4 @@
+mod clipboard;
 mod deleting_actions;
 mod insert_character_action;
 mod newline_action;
