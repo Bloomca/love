@@ -23,7 +23,7 @@ pub(super) fn run(
                         restore_terminal(terminal).expect("Could not shut down the app gracefully, terminal might not work properly");
                         return Ok(());
                     }
-                    KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::META) => {
+                    KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                         app_state.ui_state.handle_copy();
                     }
                     KeyCode::Char(character) => app_state.ui_state.insert_character(character),
