@@ -20,6 +20,8 @@ impl UIState {
             .enumerate()
             .collect();
 
+        let prefix_len = Self::get_common_whitespaces_prefix(&lines);
+
         let prev_line_whitespaces = match self.lines.get(self.cursor_line - 1) {
             Some(line) => Self::calculate_whitespace_num(line),
             None => 0,
@@ -43,17 +45,27 @@ impl UIState {
                 // 2. create a new line with those whitespaces and add new data
                 // 3. append that new line in the new index (self.cursor_line + i)
                 // 4. if that is the last line (i + 1 == total_pasted_lines), put cursor at the end
-                let prefixed_line: Vec<char> = vec![' '; prev_line_whitespaces]
-                    .into_iter()
-                    .chain(pasted_line)
-                    .collect();
+                // let whitespaces_num = Self::calculate_whitespace_num(&pasted_line);
+                let prefixed_line: Vec<char> = if prev_line_whitespaces >= prefix_len {
+                    vec![' '; prev_line_whitespaces - prefix_len]
+                        .into_iter()
+                        .chain(pasted_line)
+                        .collect()
+                } else {
+                    pasted_line
+                        .iter()
+                        .cloned()
+                        .skip(prefix_len - prev_line_whitespaces)
+                        .collect()
+                };
 
+                let old_cursor_line = self.cursor_line;
                 if total_pasted_lines == i + 1 {
-                    self.cursor_line += i - 1;
-                    self.cursor_column = prefixed_line.len();
+                    self.cursor_line += i;
+                    self.cursor_column = prefixed_line.len() + 1;
                 }
 
-                self.lines.insert(self.cursor_line - 1 + i, prefixed_line);
+                self.lines.insert(old_cursor_line - 1 + i, prefixed_line);
             }
         }
     }
@@ -131,5 +143,98 @@ impl UIState {
                 // pass
             }
         }
+    }
+
+    fn get_common_whitespaces_prefix(data: &[(usize, Vec<char>)]) -> usize {
+        let mut final_whitespaces = 0;
+        for (i, line) in data {
+            if line.is_empty() {
+                continue;
+            }
+
+            let whitespaces = Self::calculate_whitespace_num(line);
+
+            if *i == 0 {
+                if whitespaces != 0 {
+                    return whitespaces;
+                } else {
+                    final_whitespaces = whitespaces;
+                }
+            } else {
+                if whitespaces == 0 {
+                    return whitespaces;
+                } else {
+                    if final_whitespaces == 0 {
+                        final_whitespaces = whitespaces;
+                    } else if whitespaces < final_whitespaces {
+                        final_whitespaces = whitespaces;
+                    }
+                }
+            }
+        }
+
+        final_whitespaces
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn correctly_calculates_whitespaces_without_first_line() {
+        let data = vec![
+            (0, vec!['c', 'h', 'a', 'r']),
+            (1, vec![' ', ' ', 'l', 'i', 'n', 'e']),
+            (2, vec![' ', ' ', 'l', 'i', 'n', 'e']),
+        ];
+
+        assert_eq!(UIState::get_common_whitespaces_prefix(&data), 2);
+    }
+
+    #[test]
+    fn respects_whitespaces_first_line() {
+        let data = vec![
+            (0, vec![' ', ' ', 'c', 'h', 'a', 'r']),
+            (1, vec![' ', ' ', ' ', ' ', 'l', 'i', 'n', 'e']),
+            (2, vec![' ', ' ', ' ', ' ', 'l', 'i', 'n', 'e']),
+        ];
+
+        assert_eq!(UIState::get_common_whitespaces_prefix(&data), 2);
+    }
+
+    #[test]
+    fn calculates_correctly_with_different_prefix() {
+        let data = vec![
+            (0, vec!['c', 'h', 'a', 'r']),
+            (1, vec![' ', ' ', ' ', ' ', 'l', 'i', 'n', 'e']),
+            (2, vec![' ', ' ', 'l', 'i', 'n', 'e']),
+        ];
+
+        assert_eq!(UIState::get_common_whitespaces_prefix(&data), 2);
+    }
+
+    #[test]
+    fn calculates_correctly_with_zero_prefix() {
+        let data = vec![
+            (0, vec!['c', 'h', 'a', 'r']),
+            (1, vec![' ', ' ', ' ', ' ', 'l', 'i', 'n', 'e']),
+            (2, vec![' ', ' ', 'l', 'i', 'n', 'e']),
+            (3, vec!['l', 'i', 'n', 'e']),
+        ];
+
+        assert_eq!(UIState::get_common_whitespaces_prefix(&data), 0);
+    }
+
+    #[test]
+    fn handles_empty_lines_correctly() {
+        let data = vec![
+            (0, vec!['c', 'h', 'a', 'r']),
+            (1, vec![' ', ' ', ' ', ' ', 'l', 'i', 'n', 'e']),
+            (3, vec![]),
+            (2, vec![' ', ' ', 'l', 'i', 'n', 'e']),
+        ];
+
+        assert_eq!(UIState::get_common_whitespaces_prefix(&data), 2);
     }
 }
