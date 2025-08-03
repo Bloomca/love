@@ -20,6 +20,11 @@ impl UIState {
             .enumerate()
             .collect();
 
+        let prev_line_whitespaces = match self.lines.get(self.cursor_line - 1) {
+            Some(line) => Self::calculate_whitespace_num(line),
+            None => 0,
+        };
+
         for (i, pasted_line) in lines {
             if i == 0 {
                 // 1. get the current line
@@ -34,25 +39,21 @@ impl UIState {
                     line.splice(index..index, pasted_line);
                 }
             } else {
-                // 1. get the previous line and calculate whitespaces
+                // 1. get the previous line and calculate whitespaces (done before)
                 // 2. create a new line with those whitespaces and add new data
                 // 3. append that new line in the new index (self.cursor_line + i)
                 // 4. if that is the last line (i + 1 == total_pasted_lines), put cursor at the end
-                if let Some(prev_line) = self.lines.get(self.cursor_line - 1 + i - 1) {
-                    let prev_line_whitespaces = Self::calculate_whitespace_num(prev_line);
+                let prefixed_line: Vec<char> = vec![' '; prev_line_whitespaces]
+                    .into_iter()
+                    .chain(pasted_line)
+                    .collect();
 
-                    let prefixed_line: Vec<char> = vec![' '; prev_line_whitespaces]
-                        .into_iter()
-                        .chain(pasted_line)
-                        .collect();
-
-                    if total_pasted_lines == i + 1 {
-                        self.cursor_line += i - 1;
-                        self.cursor_column = prefixed_line.len();
-                    }
-
-                    self.lines.insert(self.cursor_line - 1 + i, prefixed_line);
+                if total_pasted_lines == i + 1 {
+                    self.cursor_line += i - 1;
+                    self.cursor_column = prefixed_line.len();
                 }
+
+                self.lines.insert(self.cursor_line - 1 + i, prefixed_line);
             }
         }
     }
