@@ -160,16 +160,10 @@ impl UIState {
                 } else {
                     final_whitespaces = whitespaces;
                 }
-            } else {
-                if whitespaces == 0 {
-                    return whitespaces;
-                } else {
-                    if final_whitespaces == 0 {
-                        final_whitespaces = whitespaces;
-                    } else if whitespaces < final_whitespaces {
-                        final_whitespaces = whitespaces;
-                    }
-                }
+            } else if whitespaces == 0 {
+                return whitespaces;
+            } else if final_whitespaces == 0 || whitespaces < final_whitespaces {
+                final_whitespaces = whitespaces;
             }
         }
 
