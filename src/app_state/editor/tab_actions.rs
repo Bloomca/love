@@ -3,9 +3,25 @@ use crate::app_state::editor::UIState;
 
 impl UIState {
     pub fn handle_tab_key(&mut self, config: &Config) {
+        self.vertical_offset_target = 0;
         if config.tabs_to_spaces {
-            for _ in 0..config.whitespaces_amount {
-                self.insert_character(' ');
+            if let Some(selection) = &mut self.selection {
+                let (start_line, start_column) = selection.start;
+                let (end_line, end_column) = selection.end;
+
+                for line_num in start_line.min(end_line)..=start_line.max(end_line) {
+                    if let Some(line) = self.lines.get_mut(line_num - 1) {
+                        line.splice(0..0, vec![' '; config.whitespaces_amount]);
+                    }
+                }
+
+                selection.start = (start_line, start_column + config.whitespaces_amount);
+                selection.set_end(end_line, end_column + config.whitespaces_amount);
+                self.cursor_column += config.whitespaces_amount;
+            } else {
+                for _ in 0..config.whitespaces_amount {
+                    self.insert_character(' ');
+                }
             }
         } else {
             self.insert_character('\t');
