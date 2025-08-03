@@ -27,9 +27,13 @@ pub(super) fn run(
                         app_state.ui_state.handle_copy();
                     }
                     KeyCode::Char(character) => app_state.ui_state.insert_character(character),
-                    KeyCode::Home => app_state.ui_state.cursor_move_line_start(),
+                    KeyCode::Home => app_state
+                        .ui_state
+                        .cursor_move_line_start(&key_event.modifiers),
                     KeyCode::Left => app_state.ui_state.cursor_move_left(&key_event.modifiers),
-                    KeyCode::End => app_state.ui_state.cursor_move_line_end(),
+                    KeyCode::End => app_state
+                        .ui_state
+                        .cursor_move_line_end(&key_event.modifiers),
                     KeyCode::Right => app_state.ui_state.cursor_move_right(&key_event.modifiers),
                     KeyCode::Down => app_state.ui_state.cursor_move_down(&key_event.modifiers),
                     KeyCode::Up => app_state.ui_state.cursor_move_up(&key_event.modifiers),

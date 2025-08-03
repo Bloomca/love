@@ -45,6 +45,7 @@ impl UIState {
     /// and is not meant to return range of the full line.
     ///
     /// To check if the entire line is selected, call `is_entire_line_selected` method.
+    /// Line needs to be in cursor mode, starting with `1``
     pub fn get_selection_range(&self, line: usize) -> Option<(usize, usize)> {
         match &self.selection {
             Some(selection) => selection.get_selection_range(line),
@@ -249,7 +250,7 @@ mod tests {
         assert_eq!(String::from_iter(&ui_state.lines[2]), "iption");
         assert_eq!(String::from_iter(&ui_state.lines[0]), "H world!");
 
-        ui_state.cursor_move_line_end();
+        ui_state.cursor_move_line_end(&KeyModifiers::NONE);
         ui_state.add_new_line();
 
         ui_state.insert_character('S');
@@ -280,5 +281,30 @@ mod tests {
 
         assert_eq!(ui_state.lines.len(), 1);
         assert_eq!(String::from_iter(&ui_state.lines[0]), "H world ng");
+    }
+
+    #[test]
+    fn handles_line_start_end_selection() {
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0, 50);
+
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+        ui_state.cursor_move_right(&KeyModifiers::NONE);
+
+        ui_state.cursor_move_line_end(&KeyModifiers::SHIFT);
+
+        let selection = ui_state.get_selection_range(1).unwrap();
+        assert_eq!(selection, (4, 13));
+
+        ui_state.cursor_move_line_start(&KeyModifiers::SHIFT);
+
+        let selection = ui_state.get_selection_range(1).unwrap();
+        assert_eq!(selection, (1, 4));
     }
 }

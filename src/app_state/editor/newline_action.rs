@@ -71,7 +71,7 @@ mod tests {
         assert_eq!(String::from_iter(&ui_state.lines[0]), "Hel");
         assert_eq!(String::from_iter(&ui_state.lines[1]), "lo world!");
 
-        ui_state.cursor_move_line_end();
+        ui_state.cursor_move_line_end(&KeyModifiers::NONE);
         ui_state.add_new_line();
 
         assert_eq!(ui_state.cursor_column, 1);
@@ -99,7 +99,7 @@ mod tests {
 
         assert_eq!(String::from_iter(&ui_state.lines[0]), "    Hello world!");
 
-        ui_state.cursor_move_line_end();
+        ui_state.cursor_move_line_end(&KeyModifiers::NONE);
         ui_state.add_new_line();
 
         assert_eq!(ui_state.cursor_column, 5);

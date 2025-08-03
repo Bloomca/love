@@ -98,19 +98,27 @@ impl UIState {
         }
     }
 
-    pub fn cursor_move_line_start(&mut self) {
+    pub fn cursor_move_line_start(&mut self, modifiers: &KeyModifiers) {
         if self.should_show_cursor {
+            self.start_selection(modifiers);
+
             self.vertical_offset_target = 0;
             // TODO: implement going to the beginning of the line respecting white spaces
             self.cursor_column = 1;
+
+            self.adjust_selection();
         }
     }
 
-    pub fn cursor_move_line_end(&mut self) {
+    pub fn cursor_move_line_end(&mut self, modifiers: &KeyModifiers) {
         if self.should_show_cursor {
+            self.start_selection(modifiers);
+
             self.vertical_offset_target = 0;
             let line_len = self.get_line_len(self.cursor_line - 1);
             self.cursor_column = line_len + 1;
+
+            self.adjust_selection();
         }
     }
 
@@ -323,18 +331,18 @@ mod tests {
         let mut ui_state = UIState::new(5, lines);
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.cursor_move_line_end();
+        ui_state.cursor_move_line_end(&KeyModifiers::NONE);
         assert_eq!(ui_state.cursor_column, 6);
         assert_eq!(ui_state.cursor_line, 1);
 
         ui_state.cursor_move_down(&KeyModifiers::NONE);
         ui_state.cursor_move_down(&KeyModifiers::NONE);
 
-        ui_state.cursor_move_line_start();
+        ui_state.cursor_move_line_start(&KeyModifiers::NONE);
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 3);
 
-        ui_state.cursor_move_line_end();
+        ui_state.cursor_move_line_end(&KeyModifiers::NONE);
         assert_eq!(ui_state.cursor_column, 12);
         assert_eq!(ui_state.cursor_line, 3);
     }
@@ -367,7 +375,7 @@ mod tests {
 
         assert_eq!(ui_state.editor_scroll_offset, 1);
 
-        ui_state.cursor_move_line_end();
+        ui_state.cursor_move_line_end(&KeyModifiers::NONE);
         ui_state.cursor_move_right(&KeyModifiers::NONE);
 
         assert_eq!(ui_state.editor_scroll_offset, 2);
