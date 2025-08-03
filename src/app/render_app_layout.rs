@@ -12,7 +12,7 @@ use crate::status_bar::render_status_bar;
 /// For now the layout is fixed, but the plan is to allow full customization
 /// on what is shown and the position.
 pub(super) fn render(frame: &mut Frame, app_state: &mut AppState) {
-    let vertical = Layout::vertical([Constraint::Fill(1), Constraint::Length(3)]);
+    let vertical = Layout::vertical([Constraint::Fill(1), Constraint::Length(2)]);
     let [main_area, status_area] = vertical.areas(frame.area());
 
     render_status_bar(frame, status_area, app_state);

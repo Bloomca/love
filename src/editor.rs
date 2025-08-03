@@ -34,10 +34,12 @@ pub fn render_editor(frame: &mut Frame, area: Rect, app_state: &mut AppState) {
         })
         .collect();
 
-    let block = Block::bordered().title("Editor");
+    let block = Block::bordered()
+        .border_style(Style::default().fg(Color::Rgb(80, 80, 80)))
+        .style(Style::default().bg(app_state.theme.bg_color));
     let text_widget = Paragraph::new(text)
         .block(block)
-        .style(Style::new().white().on_black())
+        .style(Style::new().white())
         .alignment(Alignment::Left);
 
     frame.render_widget(text_widget, area);
