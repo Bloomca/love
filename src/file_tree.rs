@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Padding, Paragraph},
+    widgets::{Block, Borders, Padding, Paragraph},
 };
 
 use crate::app_state::{AppState, FileTreeEntry};
@@ -28,10 +28,11 @@ pub fn render_file_tree(frame: &mut Frame, area: Rect, app_state: &AppState) {
         })
         .collect();
 
-    let block = Block::bordered()
+    let block = Block::default()
+        .borders(Borders::RIGHT)
         .border_style(Style::default().fg(Color::Rgb(80, 80, 80)))
         .style(Style::default().bg(app_state.theme.bg_color))
-        .padding(Padding::left(1));
+        .padding(Padding::uniform(1));
     let file_explorer = Paragraph::new(text)
         .block(block)
         .style(Style::new().white())

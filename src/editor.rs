@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Paragraph},
+    widgets::{Block, Padding, Paragraph},
 };
 
 use crate::app_state::AppState;
@@ -34,9 +34,9 @@ pub fn render_editor(frame: &mut Frame, area: Rect, app_state: &mut AppState) {
         })
         .collect();
 
-    let block = Block::bordered()
-        .border_style(Style::default().fg(Color::Rgb(80, 80, 80)))
-        .style(Style::default().bg(app_state.theme.bg_color));
+    let block = Block::default()
+        .style(Style::default().bg(app_state.theme.bg_color))
+        .padding(Padding::uniform(1));
     let text_widget = Paragraph::new(text)
         .block(block)
         .style(Style::new().white())
