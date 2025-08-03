@@ -1,3 +1,4 @@
+use ratatui::style::Color;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -12,6 +13,7 @@ pub struct AppState {
     pub file_tree: HashMap<PathBuf, Vec<FileTreeEntry>>,
     pub ui_state: UIState,
     pub config: Config,
+    pub theme: Theme,
 }
 
 pub struct Config {
@@ -28,6 +30,20 @@ impl Config {
     }
 }
 
+pub struct Theme {
+    pub bg_color: Color,
+    pub status_bar_color: Color,
+}
+
+impl Theme {
+    pub fn new() -> Self {
+        Theme {
+            bg_color: Color::Rgb(21, 6, 3),
+            status_bar_color: Color::Rgb(30, 9, 20),
+        }
+    }
+}
+
 impl AppState {
     pub fn new(file_content: String, working_directory: PathBuf) -> AppState {
         let lines_number = file_content.lines().count();
@@ -38,6 +54,7 @@ impl AppState {
             file_tree: HashMap::new(),
             ui_state: UIState::new(lines_number.to_string().len(), lines),
             config: Config::new(),
+            theme: Theme::new(),
         }
     }
 
