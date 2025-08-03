@@ -4,6 +4,7 @@ mod app;
 mod app_state;
 mod editor;
 mod file_tree;
+mod status_bar;
 
 use app::start_tui_editor;
 
