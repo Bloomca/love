@@ -8,7 +8,7 @@ This is a simple TUI code editor application. It is under heavy development, alt
 
 This editor is a modal editor, but the insert mode is the default one, and most operations should be available from it.
 
-![Screenshot](./screenshot.jpg)
+![Screenshot](./screenshot.png)
 
 ## Running
 
