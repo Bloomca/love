@@ -192,13 +192,29 @@ impl UndoRedo {
         self.redo_actions.push(action);
     }
 
-    pub fn redo_action(&mut self) {
+    pub fn redo_action(&mut self, editor_state: &mut UIState) {
         let Some(action) = self.redo_actions.pop() else {
             return;
         };
 
-        match action {
-            Action::Add(add_action) => todo!(),
+        match &action {
+            Action::Add(add_action) => {
+                let (start_line, start_column) = add_action.start;
+                let (end_line, end_column) = add_action.end;
+
+                if start_line == end_line {
+                    if let Some(line) = editor_state.lines.get_mut(start_line - 1) {
+                        add_action.chars.iter().enumerate().for_each(|(i, char)| {
+                            line.insert(start_column - 1 + i, *char);
+                        });
+                    }
+                }
+
+                // TODO: handle multiline
+
+                editor_state.cursor_line = end_line;
+                editor_state.cursor_column = end_column;
+            }
             Action::Remove(remove_action) => todo!(),
             Action::Paste(paste_action) => todo!(),
         }

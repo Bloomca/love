@@ -29,6 +29,15 @@ pub(super) fn run(
                     KeyCode::Char('z') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                         app_state.undo_redo.undo_action(&mut app_state.ui_state);
                     }
+                    KeyCode::Char('z')
+                        if key_event.modifiers.contains(KeyModifiers::CONTROL)
+                            && key_event.modifiers.contains(KeyModifiers::SHIFT) =>
+                    {
+                        app_state.undo_redo.redo_action(&mut app_state.ui_state);
+                    }
+                    KeyCode::Char('r') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        app_state.undo_redo.redo_action(&mut app_state.ui_state);
+                    }
                     KeyCode::Char(character) => app_state
                         .ui_state
                         .insert_character(character, &mut app_state.undo_redo),
