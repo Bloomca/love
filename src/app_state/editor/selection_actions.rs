@@ -209,7 +209,7 @@ mod tests {
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
 
-        ui_state.remove_previous_character();
+        ui_state.remove_previous_character(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 4);
         assert_eq!(ui_state.cursor_line, 1);
@@ -219,7 +219,7 @@ mod tests {
         ui_state.cursor_move_left(&KeyModifiers::SHIFT);
         ui_state.cursor_move_left(&KeyModifiers::SHIFT);
 
-        ui_state.remove_next_character();
+        ui_state.remove_next_character(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 2);
         assert_eq!(ui_state.cursor_line, 1);
@@ -231,7 +231,7 @@ mod tests {
         ui_state.cursor_move_right(&KeyModifiers::NONE);
         ui_state.cursor_move_down(&KeyModifiers::SHIFT);
 
-        ui_state.remove_next_character();
+        ui_state.remove_next_character(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 4);
         assert_eq!(ui_state.cursor_line, 2);
@@ -285,7 +285,7 @@ mod tests {
         ui_state.cursor_move_up(&KeyModifiers::SHIFT);
         ui_state.cursor_move_up(&KeyModifiers::SHIFT);
 
-        ui_state.remove_previous_character();
+        ui_state.remove_previous_character(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 8);
         assert_eq!(ui_state.cursor_line, 1);

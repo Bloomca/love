@@ -236,9 +236,9 @@ impl UndoRedo {
                     self.undo_actions.push(Action::Add(action));
                 }
                 Buffer::RemoveCharacter(remove_character_buffer) => {
-                    let data: String = remove_character_buffer.chars.iter().rev().collect();
                     match remove_character_buffer.remove_type {
                         RemoveBufferType::Backspace => {
+                            let data: String = remove_character_buffer.chars.iter().rev().collect();
                             let action = RemoveBackAction {
                                 data,
                                 start: remove_character_buffer.start_position,
@@ -248,6 +248,7 @@ impl UndoRedo {
                             self.undo_actions.push(Action::RemoveBack(action));
                         }
                         RemoveBufferType::Delete => {
+                            let data: String = remove_character_buffer.chars.iter().collect();
                             let action = RemoveForwardAction {
                                 data,
                                 start: remove_character_buffer.start_position,

@@ -51,8 +51,12 @@ pub(super) fn run(
                     KeyCode::Right => app_state.ui_state.cursor_move_right(&key_event.modifiers),
                     KeyCode::Down => app_state.ui_state.cursor_move_down(&key_event.modifiers),
                     KeyCode::Up => app_state.ui_state.cursor_move_up(&key_event.modifiers),
-                    KeyCode::Backspace => app_state.ui_state.remove_previous_character(),
-                    KeyCode::Delete => app_state.ui_state.remove_next_character(),
+                    KeyCode::Backspace => app_state
+                        .ui_state
+                        .remove_previous_character(&mut app_state.undo_redo),
+                    KeyCode::Delete => app_state
+                        .ui_state
+                        .remove_next_character(&mut app_state.undo_redo),
                     KeyCode::Enter => app_state.ui_state.add_new_line(),
                     KeyCode::BackTab => app_state.ui_state.handle_backtab_key(&app_state.config),
                     KeyCode::Tab => app_state
