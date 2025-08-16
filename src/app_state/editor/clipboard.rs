@@ -131,24 +131,25 @@ impl UIState {
                         result.push('\n');
                     }
 
-                    if i == start_line_index {
-                        if let Some(line) = self.lines.get(i - 1) {
-                            let start_index = first_line_column - 1;
-                            result.extend_from_slice(&line[start_index..]);
-                        }
+                    if i == start_line_index
+                        && let Some(line) = self.lines.get(i - 1)
+                    {
+                        let start_index = first_line_column - 1;
+                        result.extend_from_slice(&line[start_index..]);
                     }
 
-                    if i == end_line_index {
-                        if let Some(line) = self.lines.get(i - 1) {
-                            let end_index = last_line_column - 1;
-                            result.extend_from_slice(&line[..end_index]);
-                        }
+                    if i == end_line_index
+                        && let Some(line) = self.lines.get(i - 1)
+                    {
+                        let end_index = last_line_column - 1;
+                        result.extend_from_slice(&line[..end_index]);
                     }
 
-                    if i != start_line_index && i != end_line_index {
-                        if let Some(line) = self.lines.get(i - 1) {
-                            result.extend_from_slice(line);
-                        }
+                    if i != start_line_index
+                        && i != end_line_index
+                        && let Some(line) = self.lines.get(i - 1)
+                    {
+                        result.extend_from_slice(line);
                     }
                 }
 

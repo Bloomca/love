@@ -329,12 +329,12 @@ impl UndoRedo {
                 let (start_line, start_column) = add_action.start;
                 let (end_line, end_column) = add_action.end;
 
-                if start_line == end_line {
-                    if let Some(line) = editor_state.lines.get_mut(start_line - 1) {
-                        add_action.chars.iter().enumerate().for_each(|(i, char)| {
-                            line.insert(start_column - 1 + i, *char);
-                        });
-                    }
+                if start_line == end_line
+                    && let Some(line) = editor_state.lines.get_mut(start_line - 1)
+                {
+                    add_action.chars.iter().enumerate().for_each(|(i, char)| {
+                        line.insert(start_column - 1 + i, *char);
+                    });
                 }
 
                 // TODO: handle multiline
