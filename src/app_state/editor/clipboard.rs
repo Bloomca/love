@@ -31,12 +31,19 @@ impl UIState {
         // in my iTerm on macOS, newlines are replaced by `\r` by default
         // to be safe, we normalize all possible line endings into '\n'
         let normalized = data.replace("\r\n", "\n").replace("\r", "\n");
-        let total_pasted_lines = normalized.lines().count();
-        let lines: Vec<(usize, Vec<char>)> = normalized
-            .lines()
+        let mut total_pasted_lines = normalized.lines().count();
+        let mut lines: Vec<(usize, Vec<char>)> = normalized
+            .split_inclusive('\n')
+            // line endings are handled on the array level
+            .map(|line| line.strip_suffix('\n').unwrap_or(line))
             .map(|s| s.chars().collect())
             .enumerate()
             .collect();
+
+        if normalized.ends_with('\n') {
+            lines.push((lines.len(), vec![]));
+            total_pasted_lines += 1;
+        }
 
         let prefix_len = if add_whitespaces {
             Self::get_common_whitespaces_prefix(&lines)
@@ -53,46 +60,69 @@ impl UIState {
             0
         };
 
-        for (i, pasted_line) in lines {
-            if i == 0 {
-                // 1. get the current line
-                // 2. append the new line to it
-                // 3. if there is only one line, move cursor to it
-                if let Some(line) = self.lines.get_mut(self.cursor_line - 1) {
-                    // we need to calculate index first, as we might change cursor next
-                    let index = self.cursor_column - 1;
-                    if total_pasted_lines == 1 {
-                        self.cursor_column += pasted_line.len();
-                    }
-                    line.splice(index..index, pasted_line);
-                }
-            } else {
-                // 1. get the previous line and calculate whitespaces (done before)
-                // 2. create a new line with those whitespaces and add new data
-                // 3. append that new line in the new index (self.cursor_line + i)
-                // 4. if that is the last line (i + 1 == total_pasted_lines), put cursor at the end
-                // let whitespaces_num = Self::calculate_whitespace_num(&pasted_line);
-                let prefixed_line: Vec<char> = if prev_line_whitespaces >= prefix_len {
-                    vec![' '; prev_line_whitespaces - prefix_len]
-                        .into_iter()
-                        .chain(pasted_line)
-                        .collect()
-                } else {
-                    pasted_line
-                        .iter()
-                        .cloned()
-                        .skip(prefix_len - prev_line_whitespaces)
-                        .collect()
-                };
+        // if there is only one pasted line, we need to just insert it
+        // if there are more lines, it means we need to remove the rest
+        // of the current line (to the right of the cursor), insert all
+        // text, and append that part to the last line (without moving the cursor)
 
-                let old_cursor_line = self.cursor_line;
-                if total_pasted_lines == i + 1 {
-                    self.cursor_line += i;
-                    self.cursor_column = prefixed_line.len() + 1;
-                }
-
-                self.lines.insert(old_cursor_line - 1 + i, prefixed_line);
+        if total_pasted_lines == 1 {
+            // handle a single line case
+            if let Some((_, pasted_line)) = lines.into_iter().next()
+                && let Some(line) = self.lines.get_mut(self.cursor_line - 1)
+            {
+                // we need to calculate index first, as we might change cursor next
+                let index = self.cursor_column - 1;
+                self.cursor_column += pasted_line.len();
+                line.splice(index..index, pasted_line);
             }
+        } else {
+            let cut_text = self.cut_text_after_cursor();
+
+            for (i, pasted_line) in lines {
+                if i == 0 {
+                    if let Some(line) = self.lines.get_mut(self.cursor_line - 1) {
+                        line.extend(pasted_line);
+                    }
+                } else {
+                    // 1. get the previous line and calculate whitespaces (done before)
+                    // 2. create a new line with those whitespaces and add new data
+                    // 3. append that new line in the new index (self.cursor_line + i)
+                    // 4. if that is the last line (i + 1 == total_pasted_lines), put cursor at the end
+                    // let whitespaces_num = Self::calculate_whitespace_num(&pasted_line);
+                    let prefixed_line: Vec<char> = if prev_line_whitespaces >= prefix_len {
+                        vec![' '; prev_line_whitespaces - prefix_len]
+                            .into_iter()
+                            .chain(pasted_line)
+                            .collect()
+                    } else {
+                        pasted_line
+                            .iter()
+                            .cloned()
+                            .skip(prefix_len - prev_line_whitespaces)
+                            .collect()
+                    };
+
+                    let old_cursor_line = self.cursor_line;
+                    if total_pasted_lines == i + 1 {
+                        self.cursor_line += i;
+                        self.cursor_column = prefixed_line.len() + 1;
+                    }
+
+                    self.lines.insert(old_cursor_line - 1 + i, prefixed_line);
+                }
+            }
+
+            if let Some(line) = self.lines.get_mut(self.cursor_line - 1) {
+                line.extend(cut_text)
+            }
+        }
+    }
+
+    fn cut_text_after_cursor(&mut self) -> Vec<char> {
+        if let Some(line) = self.lines.get_mut(self.cursor_line - 1) {
+            line.drain((self.cursor_column - 1)..).collect()
+        } else {
+            vec![]
         }
     }
 
@@ -201,6 +231,7 @@ impl UIState {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crossterm::event::KeyModifiers;
 
     #[test]
     fn correctly_calculates_whitespaces_without_first_line() {
@@ -257,5 +288,69 @@ mod test {
         ];
 
         assert_eq!(UIState::get_common_whitespaces_prefix(&data), 2);
+    }
+
+    #[test]
+    fn paste_single_line_correctly() {
+        let mut undo_redo = UndoRedo::new();
+
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0, 50);
+
+        for _ in 0..6 {
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
+        }
+
+        assert_eq!(ui_state.cursor_line, 1);
+        assert_eq!(ui_state.cursor_column, 7);
+
+        let data = "Planet ";
+
+        ui_state.handle_paste(data.to_string(), &mut undo_redo);
+
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "Hello Planet world!");
+
+        assert_eq!(ui_state.cursor_column, 14);
+    }
+
+    #[test]
+    fn paste_multines_correctly() {
+        let mut undo_redo = UndoRedo::new();
+        let lines = vec![
+            vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
+            vec![],
+            vec!['D', 'e', 's', 'c', 'r', 'i', 'p', 't', 'i', 'o', 'n'],
+        ];
+        let mut ui_state = UIState::new(5, lines);
+        ui_state.set_editor_offset(30, 0, 50);
+
+        for _ in 0..6 {
+            ui_state.cursor_move_right(&KeyModifiers::NONE);
+        }
+
+        assert_eq!(ui_state.cursor_line, 1);
+        assert_eq!(ui_state.cursor_column, 7);
+
+        let data = "Planet!\nAnother line with some text\n";
+
+        ui_state.handle_paste(data.to_string(), &mut undo_redo);
+
+        assert_eq!(ui_state.lines.len(), 5);
+        assert_eq!(ui_state.cursor_line, 3);
+
+        assert_eq!(String::from_iter(&ui_state.lines[0]), "Hello Planet!");
+        assert_eq!(
+            String::from_iter(&ui_state.lines[1]),
+            "Another line with some text"
+        );
+        assert_eq!(String::from_iter(&ui_state.lines[2]), "world!");
+        assert_eq!(String::from_iter(&ui_state.lines[3]), "");
+        assert_eq!(String::from_iter(&ui_state.lines[4]), "Description");
     }
 }
