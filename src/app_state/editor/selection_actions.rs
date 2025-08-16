@@ -114,6 +114,7 @@ impl UIState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app_state::undo_redo::UndoRedo;
 
     #[test]
     fn handle_selection_correctly() {
@@ -181,6 +182,7 @@ mod tests {
 
     #[test]
     fn handles_selection_delete_correctly() {
+        let mut undo_redo = UndoRedo::new();
         let lines = vec![
             vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
             vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
@@ -228,10 +230,10 @@ mod tests {
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
 
-        ui_state.insert_character('R');
-        ui_state.insert_character('O');
-        ui_state.insert_character('O');
-        ui_state.insert_character('T');
+        ui_state.insert_character('R', &mut undo_redo);
+        ui_state.insert_character('O', &mut undo_redo);
+        ui_state.insert_character('O', &mut undo_redo);
+        ui_state.insert_character('T', &mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 8);
         assert_eq!(ui_state.cursor_line, 2);
@@ -253,15 +255,15 @@ mod tests {
         ui_state.cursor_move_line_end(&KeyModifiers::NONE);
         ui_state.add_new_line();
 
-        ui_state.insert_character('S');
-        ui_state.insert_character('o');
-        ui_state.insert_character('m');
-        ui_state.insert_character('e');
-        ui_state.insert_character('t');
-        ui_state.insert_character('h');
-        ui_state.insert_character('i');
-        ui_state.insert_character('n');
-        ui_state.insert_character('g');
+        ui_state.insert_character('S', &mut undo_redo);
+        ui_state.insert_character('o', &mut undo_redo);
+        ui_state.insert_character('m', &mut undo_redo);
+        ui_state.insert_character('e', &mut undo_redo);
+        ui_state.insert_character('t', &mut undo_redo);
+        ui_state.insert_character('h', &mut undo_redo);
+        ui_state.insert_character('i', &mut undo_redo);
+        ui_state.insert_character('n', &mut undo_redo);
+        ui_state.insert_character('g', &mut undo_redo);
 
         assert_eq!(String::from_iter(&ui_state.lines[3]), "Something");
 
@@ -277,7 +279,7 @@ mod tests {
         assert_eq!(ui_state.cursor_column, 8);
         assert_eq!(ui_state.cursor_line, 1);
 
-        ui_state.insert_character(' ');
+        ui_state.insert_character(' ', &mut undo_redo);
 
         assert_eq!(ui_state.lines.len(), 1);
         assert_eq!(String::from_iter(&ui_state.lines[0]), "H world ng");

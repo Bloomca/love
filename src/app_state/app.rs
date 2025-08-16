@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use super::editor::{FileTreeEntry, UIState};
+use super::undo_redo::UndoRedo;
 
 pub struct AppState {
     /// Directory of the entire project, can only be a single one
@@ -12,6 +13,7 @@ pub struct AppState {
     pub working_directory: PathBuf,
     pub file_tree: HashMap<PathBuf, Vec<FileTreeEntry>>,
     pub ui_state: UIState,
+    pub undo_redo: UndoRedo,
     pub config: Config,
     pub theme: Theme,
 }
@@ -55,6 +57,7 @@ impl AppState {
             ui_state: UIState::new(lines_number.to_string().len(), lines),
             config: Config::new(),
             theme: Theme::new(),
+            undo_redo: UndoRedo::new(),
         }
     }
 

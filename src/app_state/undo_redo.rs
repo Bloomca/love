@@ -1,14 +1,32 @@
 use std::time::SystemTime;
 
+use crate::app_state::editor::UIState;
+
 const MAX_BUFFER_DEBOUNCE_TIME_MS: u128 = 250;
 
-struct Action {
-    // type: 'remove', text, position
-    // type: 'add', text, start position, end position
+struct AddAction {
+    start: (usize, usize),
+    end: (usize, usize),
+    chars: Vec<char>,
+}
+
+struct RemoveAction {
+    // pass
+}
+
+struct PasteAction {
+    // pass
+}
+
+enum Action {
+    Add(AddAction),
+    Remove(RemoveAction),
+    Paste(PasteAction),
 }
 
 pub enum UndoAction {
-    AddCharacter(char, (usize, usize)),
+    /// character, starting position, ending position
+    AddCharacter(char, (usize, usize), (usize, usize)),
     Paste,
     RemoveCharacter,
 }
@@ -21,10 +39,10 @@ struct AddCharacterBuffer {
 }
 
 impl AddCharacterBuffer {
-    fn new() -> Self {
+    fn new(line_num: usize, line_column: usize) -> Self {
         AddCharacterBuffer {
-            start_position: (0, 0),
-            end_position: (0, 0),
+            start_position: (line_num, line_column),
+            end_position: (line_num, line_column),
             chars: vec![],
             last_action_timestamp: SystemTime::now(),
         }
@@ -32,14 +50,15 @@ impl AddCharacterBuffer {
 
     fn should_commit(&self) -> bool {
         if let Ok(elapsed) = self.last_action_timestamp.elapsed() {
-            return elapsed.as_millis() < MAX_BUFFER_DEBOUNCE_TIME_MS;
+            return elapsed.as_millis() > MAX_BUFFER_DEBOUNCE_TIME_MS;
         }
 
         true
     }
 
-    fn add_char(&mut self, ch: char) {
+    fn add_char(&mut self, ch: char, end_line: usize, end_col: usize) {
         self.chars.push(ch);
+        self.end_position = (end_line, end_col);
         self.last_action_timestamp = SystemTime::now();
     }
 }
@@ -56,9 +75,6 @@ enum Buffer {
 }
 
 pub struct UndoRedo {
-    /// pointer to the currently active action in actions
-    /// by default it points to the last action, but
-    pointer: Option<usize>,
     max_actions_memory: usize,
     undo_actions: Vec<Action>,
     redo_actions: Vec<Action>,
@@ -71,7 +87,6 @@ pub struct UndoRedo {
 impl UndoRedo {
     pub fn new() -> Self {
         UndoRedo {
-            pointer: None,
             max_actions_memory: 20,
             undo_actions: Vec::new(),
             redo_actions: Vec::new(),
@@ -83,33 +98,50 @@ impl UndoRedo {
         // if we perform any action, all redo actions are immediately invalidated
         self.redo_actions.clear();
         match action {
-            UndoAction::AddCharacter(ch, (line_num, col_num)) => match &mut self.buffer {
-                Some(buffer) => match buffer {
-                    Buffer::AddCharacter(add_character_buffer) => {
-                        if add_character_buffer.should_commit() {
-                            self.commit_buffer();
-                            self.buffer = Some(Buffer::AddCharacter(AddCharacterBuffer::new()));
-                        } else {
-                            add_character_buffer.add_char(ch);
+            UndoAction::AddCharacter(ch, (start_line, start_col), (end_line, end_col)) => {
+                match &mut self.buffer {
+                    Some(buffer) => match buffer {
+                        Buffer::AddCharacter(add_character_buffer) => {
+                            if add_character_buffer.should_commit() {
+                                self.commit_buffer();
+                                let mut add_buffer: AddCharacterBuffer =
+                                    AddCharacterBuffer::new(start_line, start_col);
+                                add_buffer.add_char(ch, end_line, end_col);
+                                self.buffer = Some(Buffer::AddCharacter(add_buffer));
+                            } else {
+                                add_character_buffer.add_char(ch, end_line, end_col);
+                            }
                         }
+                        Buffer::RemoveCharacter(_) => {
+                            self.commit_buffer();
+                            let mut add_buffer = AddCharacterBuffer::new(start_line, start_col);
+                            add_buffer.add_char(ch, end_line, end_col);
+                            self.buffer = Some(Buffer::AddCharacter(add_buffer));
+                        }
+                    },
+                    None => {
+                        let mut add_buffer = AddCharacterBuffer::new(start_line, start_col);
+                        add_buffer.add_char(ch, end_line, end_col);
+                        self.buffer = Some(Buffer::AddCharacter(add_buffer))
                     }
-                    Buffer::RemoveCharacter(_) => {
-                        self.commit_buffer();
-                        self.buffer = Some(Buffer::AddCharacter(AddCharacterBuffer::new()));
-                    }
-                },
-                None => self.buffer = Some(Buffer::AddCharacter(AddCharacterBuffer::new())),
-            },
+                }
+            }
             UndoAction::Paste => todo!(),
             UndoAction::RemoveCharacter => todo!(),
         }
     }
 
     fn commit_buffer(&mut self) {
-        if let Some(buffer) = &mut self.buffer {
+        if let Some(buffer) = self.buffer.take() {
             match buffer {
                 Buffer::AddCharacter(add_character_buffer) => {
-                    //
+                    let action = AddAction {
+                        start: add_character_buffer.start_position,
+                        end: add_character_buffer.end_position,
+                        chars: add_character_buffer.chars,
+                    };
+
+                    self.undo_actions.push(Action::Add(action));
                 }
                 Buffer::RemoveCharacter(_) => {
                     //
@@ -118,7 +150,7 @@ impl UndoRedo {
         }
     }
 
-    fn undo_action(&mut self) {
+    pub fn undo_action(&mut self, editor_state: &mut UIState) {
         self.commit_buffer();
         self.buffer = None;
 
@@ -126,17 +158,50 @@ impl UndoRedo {
             return;
         };
 
-        // reverse action
+        match &action {
+            Action::Add(add_action) => {
+                // we don't need to use actual characters, as we delete them
+                // using only start and end positions
+                let (start_line, start_column) = add_action.start;
+                let (end_line, end_column) = add_action.end;
+                editor_state.cursor_line = start_line;
+                editor_state.cursor_column = start_column;
+
+                if end_line < start_line {
+                    // SHOULD NEVER HAPPEN
+                    return;
+                }
+
+                if start_line == end_line {
+                    if end_column <= start_column {
+                        // SHOULD NEVER HAPPEN
+                        return;
+                    }
+
+                    if let Some(line) = editor_state.lines.get_mut(start_line - 1) {
+                        line.drain((start_column - 1)..(end_column - 1));
+                    }
+                } else {
+                    //
+                }
+            }
+            Action::Remove(remove_action) => todo!(),
+            Action::Paste(paste_action) => todo!(),
+        }
 
         self.redo_actions.push(action);
     }
 
-    fn redo_action(&mut self) {
+    pub fn redo_action(&mut self) {
         let Some(action) = self.redo_actions.pop() else {
             return;
         };
 
-        // apply action
+        match action {
+            Action::Add(add_action) => todo!(),
+            Action::Remove(remove_action) => todo!(),
+            Action::Paste(paste_action) => todo!(),
+        }
 
         self.undo_actions.push(action);
     }

@@ -1,8 +1,9 @@
 use crate::app_state::app::Config;
 use crate::app_state::editor::UIState;
+use crate::app_state::undo_redo::UndoRedo;
 
 impl UIState {
-    pub fn handle_tab_key(&mut self, config: &Config) {
+    pub fn handle_tab_key(&mut self, config: &Config, undo_redo: &mut UndoRedo) {
         self.vertical_offset_target = 0;
         if config.tabs_to_spaces {
             if let Some(selection) = &mut self.selection {
@@ -20,11 +21,11 @@ impl UIState {
                 self.cursor_column += config.whitespaces_amount;
             } else {
                 for _ in 0..config.whitespaces_amount {
-                    self.insert_character(' ');
+                    self.insert_character(' ', undo_redo);
                 }
             }
         } else {
-            self.insert_character('\t');
+            self.insert_character('\t', undo_redo);
         }
     }
 
@@ -99,7 +100,7 @@ impl UIState {
                 }
             }
         } else {
-            // pass for now
+            // pass for now, handle tabs later
         }
     }
 }

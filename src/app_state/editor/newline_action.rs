@@ -47,6 +47,7 @@ impl UIState {
 mod tests {
     use super::*;
     use crate::app_state::app::Config;
+    use crate::app_state::undo_redo::UndoRedo;
     use crossterm::event::KeyModifiers;
 
     #[test]
@@ -83,6 +84,7 @@ mod tests {
 
     #[test]
     fn handles_newline_with_whitespaces() {
+        let mut undo_redo = UndoRedo::new();
         let lines = vec![
             vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
             vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
@@ -92,7 +94,7 @@ mod tests {
         let config = Config::new();
         ui_state.set_editor_offset(30, 0, 50);
 
-        ui_state.handle_tab_key(&config);
+        ui_state.handle_tab_key(&config, &mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 5);
         assert_eq!(ui_state.cursor_line, 1);

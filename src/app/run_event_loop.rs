@@ -26,7 +26,12 @@ pub(super) fn run(
                     KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                         app_state.ui_state.handle_copy();
                     }
-                    KeyCode::Char(character) => app_state.ui_state.insert_character(character),
+                    KeyCode::Char('z') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        app_state.undo_redo.undo_action(&mut app_state.ui_state);
+                    }
+                    KeyCode::Char(character) => app_state
+                        .ui_state
+                        .insert_character(character, &mut app_state.undo_redo),
                     KeyCode::Home => app_state
                         .ui_state
                         .cursor_move_line_start(&key_event.modifiers),
@@ -41,7 +46,9 @@ pub(super) fn run(
                     KeyCode::Delete => app_state.ui_state.remove_next_character(),
                     KeyCode::Enter => app_state.ui_state.add_new_line(),
                     KeyCode::BackTab => app_state.ui_state.handle_backtab_key(&app_state.config),
-                    KeyCode::Tab => app_state.ui_state.handle_tab_key(&app_state.config),
+                    KeyCode::Tab => app_state
+                        .ui_state
+                        .handle_tab_key(&app_state.config, &mut app_state.undo_redo),
                     _ => {}
                 }
             }
