@@ -67,13 +67,13 @@ impl UIState {
 
         if total_pasted_lines == 1 {
             // handle a single line case
-            if let Some((_, pasted_line)) = lines.into_iter().next() {
-                if let Some(line) = self.lines.get_mut(self.cursor_line - 1) {
-                    // we need to calculate index first, as we might change cursor next
-                    let index = self.cursor_column - 1;
-                    self.cursor_column += pasted_line.len();
-                    line.splice(index..index, pasted_line);
-                }
+            if let Some((_, pasted_line)) = lines.into_iter().next()
+                && let Some(line) = self.lines.get_mut(self.cursor_line - 1)
+            {
+                // we need to calculate index first, as we might change cursor next
+                let index = self.cursor_column - 1;
+                self.cursor_column += pasted_line.len();
+                line.splice(index..index, pasted_line);
             }
         } else {
             let cut_text = self.cut_text_after_cursor();
