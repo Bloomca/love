@@ -15,6 +15,7 @@ struct RemoveAction {
 }
 
 struct PasteAction {
+    data: String,
     start: (usize, usize),
     end: (usize, usize),
 }
@@ -28,7 +29,7 @@ enum Action {
 pub enum UndoAction {
     /// character, starting position, ending position
     AddCharacter(char, (usize, usize), (usize, usize)),
-    Paste((usize, usize), (usize, usize)),
+    Paste(String, (usize, usize), (usize, usize)),
     RemoveCharacter,
 }
 
@@ -127,7 +128,7 @@ impl UndoRedo {
                     }
                 }
             }
-            UndoAction::Paste(start, end) => {
+            UndoAction::Paste(data, start, end) => {
                 if let Some(buffer) = &self.buffer {
                     match buffer {
                         Buffer::AddCharacter(_) => {
@@ -141,7 +142,7 @@ impl UndoRedo {
 
                 self.buffer = None;
                 self.undo_actions
-                    .push(Action::Paste(PasteAction { start, end }))
+                    .push(Action::Paste(PasteAction { data, start, end }))
             }
             UndoAction::RemoveCharacter => todo!(),
         }
@@ -236,7 +237,15 @@ impl UndoRedo {
                 editor_state.cursor_column = end_column;
             }
             Action::Remove(remove_action) => todo!(),
-            Action::Paste(paste_action) => todo!(),
+            Action::Paste(paste_action) => {
+                // put the cursor at the start to insert correctly
+                editor_state.cursor_line = paste_action.start.0;
+                editor_state.cursor_column = paste_action.start.1;
+
+                // we insert whitespaces, because that's what happens when we paste as well
+                // we need to clone the string, because we move the action to the undo vector
+                editor_state.insert_text(paste_action.data.clone(), true);
+            }
         }
 
         self.undo_actions.push(action);

@@ -17,6 +17,17 @@ impl UIState {
 
         let start_position = (self.cursor_line, self.cursor_column);
 
+        // clone pasted string before moving it
+        let cloned_data = data.clone();
+
+        self.insert_text(data, true);
+
+        let end_position = (self.cursor_line, self.cursor_column);
+        undo_redo.add_undo_action(UndoAction::Paste(cloned_data, start_position, end_position));
+    }
+
+    /// insert text at the current cursor position. It WILL move the cursor to the end
+    pub fn insert_text(&mut self, data: String, add_whitespaces: bool) {
         // in my iTerm on macOS, newlines are replaced by `\r` by default
         // to be safe, we normalize all possible line endings into '\n'
         let normalized = data.replace("\r\n", "\n").replace("\r", "\n");
@@ -27,11 +38,19 @@ impl UIState {
             .enumerate()
             .collect();
 
-        let prefix_len = Self::get_common_whitespaces_prefix(&lines);
+        let prefix_len = if add_whitespaces {
+            Self::get_common_whitespaces_prefix(&lines)
+        } else {
+            0
+        };
 
-        let prev_line_whitespaces = match self.lines.get(self.cursor_line - 1) {
-            Some(line) => Self::calculate_whitespace_num(line),
-            None => 0,
+        let prev_line_whitespaces = if add_whitespaces {
+            match self.lines.get(self.cursor_line - 1) {
+                Some(line) => Self::calculate_whitespace_num(line),
+                None => 0,
+            }
+        } else {
+            0
         };
 
         for (i, pasted_line) in lines {
@@ -75,9 +94,6 @@ impl UIState {
                 self.lines.insert(old_cursor_line - 1 + i, prefixed_line);
             }
         }
-
-        let end_position = (self.cursor_line, self.cursor_column);
-        undo_redo.add_undo_action(UndoAction::Paste(start_position, end_position));
     }
 
     pub fn handle_copy(&self) {
