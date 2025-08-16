@@ -10,8 +10,16 @@ struct AddAction {
     chars: Vec<char>,
 }
 
-struct RemoveAction {
-    // pass
+struct RemoveBackAction {
+    data: String,
+    start: (usize, usize),
+    end: (usize, usize),
+}
+
+struct RemoveForwardAction {
+    data: String,
+    start: (usize, usize),
+    end: (usize, usize),
 }
 
 struct PasteAction {
@@ -22,7 +30,8 @@ struct PasteAction {
 
 enum Action {
     Add(AddAction),
-    Remove(RemoveAction),
+    RemoveBack(RemoveBackAction),
+    RemoveForward(RemoveForwardAction),
     Paste(PasteAction),
 }
 
@@ -30,7 +39,7 @@ pub enum UndoAction {
     /// character, starting position, ending position
     AddCharacter(char, (usize, usize), (usize, usize)),
     Paste(String, (usize, usize), (usize, usize)),
-    RemoveCharacter,
+    RemoveCharacter(char, (usize, usize), (usize, usize), RemoveBufferType),
 }
 
 struct AddCharacterBuffer {
@@ -65,10 +74,44 @@ impl AddCharacterBuffer {
     }
 }
 
+#[derive(PartialEq, Eq)]
+pub enum RemoveBufferType {
+    Backspace,
+    Delete,
+}
+
 struct RemoveCharacterBuffer {
     start_position: (usize, usize),
+    end_position: (usize, usize),
     chars: Vec<char>,
     last_action_timestamp: SystemTime,
+    remove_type: RemoveBufferType,
+}
+
+impl RemoveCharacterBuffer {
+    fn new(line_num: usize, line_column: usize, remove_type: RemoveBufferType) -> Self {
+        RemoveCharacterBuffer {
+            start_position: (line_num, line_column),
+            end_position: (line_num, line_column),
+            chars: vec![],
+            last_action_timestamp: SystemTime::now(),
+            remove_type,
+        }
+    }
+
+    fn should_commit(&self) -> bool {
+        if let Ok(elapsed) = self.last_action_timestamp.elapsed() {
+            return elapsed.as_millis() > MAX_BUFFER_DEBOUNCE_TIME_MS;
+        }
+
+        true
+    }
+
+    fn remove_char(&mut self, ch: char, end_line: usize, end_col: usize) {
+        self.chars.push(ch);
+        self.end_position = (end_line, end_col);
+        self.last_action_timestamp = SystemTime::now();
+    }
 }
 
 enum Buffer {
@@ -142,7 +185,41 @@ impl UndoRedo {
                 self.undo_actions
                     .push(Action::Paste(PasteAction { data, start, end }))
             }
-            UndoAction::RemoveCharacter => todo!(),
+            UndoAction::RemoveCharacter(
+                ch,
+                (start_line, start_col),
+                (end_line, end_col),
+                remove_type,
+            ) => match &mut self.buffer {
+                Some(buffer) => match buffer {
+                    Buffer::AddCharacter(_) => {
+                        self.commit_buffer();
+                        let mut remove_buffer =
+                            RemoveCharacterBuffer::new(start_line, start_col, remove_type);
+                        remove_buffer.remove_char(ch, end_line, end_col);
+                        self.buffer = Some(Buffer::RemoveCharacter(remove_buffer));
+                    }
+                    Buffer::RemoveCharacter(remove_ch_buffer) => {
+                        if remove_ch_buffer.remove_type != remove_type
+                            || remove_ch_buffer.should_commit()
+                        {
+                            self.commit_buffer();
+                            let mut remove_buffer: RemoveCharacterBuffer =
+                                RemoveCharacterBuffer::new(start_line, start_col, remove_type);
+                            remove_buffer.remove_char(ch, end_line, end_col);
+                            self.buffer = Some(Buffer::RemoveCharacter(remove_buffer));
+                        } else {
+                            remove_ch_buffer.remove_char(ch, end_line, end_col);
+                        }
+                    }
+                },
+                None => {
+                    let mut remove_ch_buffer =
+                        RemoveCharacterBuffer::new(start_line, start_col, remove_type);
+                    remove_ch_buffer.remove_char(ch, end_line, end_col);
+                    self.buffer = Some(Buffer::RemoveCharacter(remove_ch_buffer))
+                }
+            },
         }
     }
 
@@ -158,8 +235,28 @@ impl UndoRedo {
 
                     self.undo_actions.push(Action::Add(action));
                 }
-                Buffer::RemoveCharacter(_) => {
-                    //
+                Buffer::RemoveCharacter(remove_character_buffer) => {
+                    let data: String = remove_character_buffer.chars.iter().rev().collect();
+                    match remove_character_buffer.remove_type {
+                        RemoveBufferType::Backspace => {
+                            let action = RemoveBackAction {
+                                data,
+                                start: remove_character_buffer.start_position,
+                                end: remove_character_buffer.end_position,
+                            };
+
+                            self.undo_actions.push(Action::RemoveBack(action));
+                        }
+                        RemoveBufferType::Delete => {
+                            let action = RemoveForwardAction {
+                                data,
+                                start: remove_character_buffer.start_position,
+                                end: remove_character_buffer.end_position,
+                            };
+
+                            self.undo_actions.push(Action::RemoveForward(action));
+                        }
+                    }
                 }
             }
         }
@@ -200,11 +297,21 @@ impl UndoRedo {
                     //
                 }
             }
-            Action::Remove(remove_action) => todo!(),
             Action::Paste(paste_action) => {
                 editor_state.delete_range(paste_action.start, paste_action.end);
                 editor_state.cursor_line = paste_action.start.0;
                 editor_state.cursor_column = paste_action.start.1;
+            }
+            Action::RemoveBack(remove_back_action) => {
+                // we should prepend all deleted whitespaces
+                editor_state.insert_text(remove_back_action.data.clone(), false);
+            }
+            Action::RemoveForward(remove_forward_action) => {
+                editor_state.insert_text(remove_forward_action.data.clone(), false);
+                // we need to move the cursor to the beginning to replicate the state
+                // before the user pressed delete
+                editor_state.cursor_line = remove_forward_action.start.0;
+                editor_state.cursor_column = remove_forward_action.start.1;
             }
         }
 
@@ -234,7 +341,6 @@ impl UndoRedo {
                 editor_state.cursor_line = end_line;
                 editor_state.cursor_column = end_column;
             }
-            Action::Remove(remove_action) => todo!(),
             Action::Paste(paste_action) => {
                 // put the cursor at the start to insert correctly
                 editor_state.cursor_line = paste_action.start.0;
@@ -243,6 +349,14 @@ impl UndoRedo {
                 // we insert whitespaces, because that's what happens when we paste as well
                 // we need to clone the string, because we move the action to the undo vector
                 editor_state.insert_text(paste_action.data.clone(), true);
+            }
+            Action::RemoveBack(remove_back_action) => {
+                editor_state.delete_range(remove_back_action.end, remove_back_action.start);
+                editor_state.cursor_line = remove_back_action.end.0;
+                editor_state.cursor_column = remove_back_action.end.1;
+            }
+            Action::RemoveForward(remove_forward_action) => {
+                editor_state.delete_range(remove_forward_action.start, remove_forward_action.end);
             }
         }
 
