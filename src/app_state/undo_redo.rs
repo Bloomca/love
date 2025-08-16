@@ -77,7 +77,6 @@ enum Buffer {
 }
 
 pub struct UndoRedo {
-    max_actions_memory: usize,
     undo_actions: Vec<Action>,
     redo_actions: Vec<Action>,
     /// keep actions here so that we don't undo
@@ -89,7 +88,6 @@ pub struct UndoRedo {
 impl UndoRedo {
     pub fn new() -> Self {
         UndoRedo {
-            max_actions_memory: 20,
             undo_actions: Vec::new(),
             redo_actions: Vec::new(),
             buffer: None,
