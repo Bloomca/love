@@ -1,8 +1,9 @@
 use crate::app_state::editor::UIState;
+use crate::app_state::undo_redo::{RemoveBufferType, UndoAction, UndoRedo};
 use crossterm::event::KeyModifiers;
 
 impl UIState {
-    pub fn remove_previous_character(&mut self) {
+    pub fn remove_previous_character(&mut self, undo_redo: &mut UndoRedo) {
         self.vertical_offset_target = 0;
 
         // if we successfully deleted the selection, we don't need to do anything else
@@ -11,6 +12,7 @@ impl UIState {
         }
 
         let index = self.cursor_column - 1;
+        let start = (self.cursor_line, self.cursor_column);
 
         if self.cursor_column == 1 && self.cursor_line == 1 {
             // nothing to remove, we are already at the beginning
@@ -53,15 +55,32 @@ impl UIState {
                 self.cursor_column = previous_line_len + 1;
 
                 self.handle_cursor_scrolling();
+
+                undo_redo.add_undo_action(UndoAction::RemoveCharacter(
+                    '\n',
+                    start,
+                    (self.cursor_line, self.cursor_column),
+                    RemoveBufferType::Backspace,
+                ));
             } else if index <= line.len() {
+                let deleted_character = line.get(index - 1).copied();
                 line.remove(index - 1);
                 self.cursor_move_left(&KeyModifiers::NONE);
+
+                if let Some(ch) = deleted_character {
+                    undo_redo.add_undo_action(UndoAction::RemoveCharacter(
+                        ch,
+                        start,
+                        (self.cursor_line, self.cursor_column),
+                        RemoveBufferType::Backspace,
+                    ));
+                }
             }
         }
     }
 
     // if `delete` is pressed, we delete the next character
-    pub fn remove_next_character(&mut self) {
+    pub fn remove_next_character(&mut self, undo_redo: &mut UndoRedo) {
         self.vertical_offset_target = 0;
 
         // if we successfully deleted the selection, we don't need to do anything else
@@ -85,9 +104,30 @@ impl UIState {
                     if let Some(current_line) = self.lines.get_mut(self.cursor_line - 1) {
                         current_line.append(&mut next_line);
                     }
+
+                    undo_redo.add_undo_action(UndoAction::RemoveCharacter(
+                        '\n',
+                        // the cursor never moves when pressing delete,
+                        // so the value can be the same
+                        (self.cursor_line, self.cursor_column),
+                        (self.cursor_line, self.cursor_column),
+                        RemoveBufferType::Delete,
+                    ));
                 }
             } else if line_len > 0 && index < line_len {
+                let deleted_character = line.get(index).copied();
                 line.remove(index);
+
+                if let Some(ch) = deleted_character {
+                    undo_redo.add_undo_action(UndoAction::RemoveCharacter(
+                        ch,
+                        // the cursor never moves when pressing delete,
+                        // so the value can be the same
+                        (self.cursor_line, self.cursor_column),
+                        (self.cursor_line, self.cursor_column),
+                        RemoveBufferType::Delete,
+                    ));
+                }
             }
         }
     }
@@ -99,6 +139,7 @@ mod test {
 
     #[test]
     fn deletes_previous_character_correctly() {
+        let mut undo_redo = UndoRedo::new();
         let lines = vec![
             vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
             vec![],
@@ -113,7 +154,7 @@ mod test {
 
         // intentionally delete more than 6 characters
         for _ in 0..15 {
-            ui_state.remove_previous_character();
+            ui_state.remove_previous_character(&mut undo_redo);
         }
 
         assert_eq!(String::from_iter(&ui_state.lines[0]), "world!");
@@ -122,6 +163,7 @@ mod test {
 
     #[test]
     fn deletes_next_character_correctly() {
+        let mut undo_redo = UndoRedo::new();
         let lines = vec![
             vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
             vec![],
@@ -131,7 +173,7 @@ mod test {
         ui_state.set_editor_offset(30, 0, 50);
 
         for _ in 0..6 {
-            ui_state.remove_next_character();
+            ui_state.remove_next_character(&mut undo_redo);
         }
 
         assert_eq!(String::from_iter(&ui_state.lines[0]), "world!");
@@ -140,6 +182,7 @@ mod test {
 
     #[test]
     fn handles_backspace_lines_deleting_correctly() {
+        let mut undo_redo = UndoRedo::new();
         let lines = vec![
             vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
             vec![],
@@ -150,7 +193,7 @@ mod test {
 
         ui_state.cursor_move_down(&KeyModifiers::NONE);
 
-        ui_state.remove_previous_character();
+        ui_state.remove_previous_character(&mut undo_redo);
 
         assert_eq!(ui_state.lines.len(), 2);
         assert_eq!(ui_state.cursor_column, 13);
@@ -166,7 +209,7 @@ mod test {
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 2);
 
-        ui_state.remove_previous_character();
+        ui_state.remove_previous_character(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 13);
         assert_eq!(ui_state.cursor_line, 1);
@@ -180,6 +223,7 @@ mod test {
 
     #[test]
     fn handles_deletekey_lines_deleting_correctly() {
+        let mut undo_redo = UndoRedo::new();
         let lines = vec![
             vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
             vec![],
@@ -196,11 +240,11 @@ mod test {
         assert_eq!(ui_state.cursor_column, 13);
         assert_eq!(ui_state.cursor_line, 1);
 
-        ui_state.remove_next_character();
+        ui_state.remove_next_character(&mut undo_redo);
 
         assert_eq!(ui_state.lines.len(), 2);
 
-        ui_state.remove_next_character();
+        ui_state.remove_next_character(&mut undo_redo);
         assert_eq!(ui_state.lines.len(), 1);
 
         assert_eq!(
@@ -215,7 +259,7 @@ mod test {
         assert_eq!(ui_state.cursor_line, 1);
 
         // nothing should happen, we are at the end of the file
-        ui_state.remove_next_character();
+        ui_state.remove_next_character(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 24);
         assert_eq!(ui_state.cursor_line, 1);

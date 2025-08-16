@@ -3,13 +3,31 @@ use crossterm::execute;
 use std::io;
 
 use crate::app_state::editor::UIState;
+use crate::app_state::undo_redo::{UndoAction, UndoRedo};
 
 impl UIState {
-    pub fn handle_paste(&mut self, data: String) {
+    pub fn handle_paste(&mut self, data: String, undo_redo: &mut UndoRedo) {
+        if data.is_empty() {
+            return;
+        }
+
         self.vertical_offset_target = 0;
 
         self.delete_selection();
 
+        let start_position = (self.cursor_line, self.cursor_column);
+
+        // clone pasted string before moving it
+        let cloned_data = data.clone();
+
+        self.insert_text(data, true);
+
+        let end_position = (self.cursor_line, self.cursor_column);
+        undo_redo.add_undo_action(UndoAction::Paste(cloned_data, start_position, end_position));
+    }
+
+    /// insert text at the current cursor position. It WILL move the cursor to the end
+    pub fn insert_text(&mut self, data: String, add_whitespaces: bool) {
         // in my iTerm on macOS, newlines are replaced by `\r` by default
         // to be safe, we normalize all possible line endings into '\n'
         let normalized = data.replace("\r\n", "\n").replace("\r", "\n");
@@ -20,11 +38,19 @@ impl UIState {
             .enumerate()
             .collect();
 
-        let prefix_len = Self::get_common_whitespaces_prefix(&lines);
+        let prefix_len = if add_whitespaces {
+            Self::get_common_whitespaces_prefix(&lines)
+        } else {
+            0
+        };
 
-        let prev_line_whitespaces = match self.lines.get(self.cursor_line - 1) {
-            Some(line) => Self::calculate_whitespace_num(line),
-            None => 0,
+        let prev_line_whitespaces = if add_whitespaces {
+            match self.lines.get(self.cursor_line - 1) {
+                Some(line) => Self::calculate_whitespace_num(line),
+                None => 0,
+            }
+        } else {
+            0
         };
 
         for (i, pasted_line) in lines {
@@ -105,24 +131,25 @@ impl UIState {
                         result.push('\n');
                     }
 
-                    if i == start_line_index {
-                        if let Some(line) = self.lines.get(i - 1) {
-                            let start_index = first_line_column - 1;
-                            result.extend_from_slice(&line[start_index..]);
-                        }
+                    if i == start_line_index
+                        && let Some(line) = self.lines.get(i - 1)
+                    {
+                        let start_index = first_line_column - 1;
+                        result.extend_from_slice(&line[start_index..]);
                     }
 
-                    if i == end_line_index {
-                        if let Some(line) = self.lines.get(i - 1) {
-                            let end_index = last_line_column - 1;
-                            result.extend_from_slice(&line[..end_index]);
-                        }
+                    if i == end_line_index
+                        && let Some(line) = self.lines.get(i - 1)
+                    {
+                        let end_index = last_line_column - 1;
+                        result.extend_from_slice(&line[..end_index]);
                     }
 
-                    if i != start_line_index && i != end_line_index {
-                        if let Some(line) = self.lines.get(i - 1) {
-                            result.extend_from_slice(line);
-                        }
+                    if i != start_line_index
+                        && i != end_line_index
+                        && let Some(line) = self.lines.get(i - 1)
+                    {
+                        result.extend_from_slice(line);
                     }
                 }
 

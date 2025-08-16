@@ -54,59 +54,70 @@ impl UIState {
     }
 
     pub fn delete_selection(&mut self) -> bool {
-        match &self.selection {
-            Some(selection) => {
-                let (start_line, start_column) = selection.start;
-                let (end_line, end_column) = selection.end;
-                let min_line = start_line.min(end_line) - 1;
-                let max_line = start_line.max(end_line) - 1;
+        let Some(selection) = &self.selection else {
+            return false;
+        };
 
-                if min_line == max_line {
-                    // if the line is equal, we need to remove selected range
-                    let min_column = start_column.min(end_column);
-                    let max_column = start_column.max(end_column);
+        self.delete_range(selection.start, selection.end);
 
-                    if let Some(line) = self.lines.get_mut(min_line) {
-                        line.drain((min_column - 1)..(max_column - 1));
-                    }
-                } else {
-                    // if there are multiple lines, we need to get the last line, remove selected elements;
-                    // get the first line, remove selected elements; append last line to the first
-                    // if there are lines between first and last, we need to remove them
+        let Some(selection) = &self.selection else {
+            return false;
+        };
 
-                    let mut last_line = self.lines.remove(max_line);
+        let (start_line, start_column) = selection.get_first_position();
 
-                    let (last_line_col, first_line_col) = if end_line > start_line {
-                        (end_column, start_column)
-                    } else {
-                        (start_column, end_column)
-                    };
+        self.cursor_column = start_column;
+        self.cursor_line = start_line;
+        self.selection = None;
 
-                    last_line.drain(0..(last_line_col - 1));
+        true
+    }
 
-                    if let Some(first_line) = self.lines.get_mut(min_line) {
-                        first_line.truncate(first_line_col - 1);
-                        first_line.append(&mut last_line);
-                    }
+    /// Delete text between the range; please note that the cursor is not moved
+    /// so it is the responsibility of the caller to do so
+    pub fn delete_range(
+        &mut self,
+        (start_line, start_column): (usize, usize),
+        (end_line, end_column): (usize, usize),
+    ) {
+        let min_line = start_line.min(end_line) - 1;
+        let max_line = start_line.max(end_line) - 1;
 
-                    let lines_between = max_line - min_line - 1;
-                    // it means that we have some lines we need to completely remove
-                    if lines_between > 0 {
-                        for i in 0..lines_between {
-                            self.lines.remove(max_line - i - 1);
-                        }
-                    }
-                }
+        if min_line == max_line {
+            // if the line is equal, we need to remove selected range
+            let min_column = start_column.min(end_column);
+            let max_column = start_column.max(end_column);
 
-                let (start_line, start_column) = selection.get_first_position();
-
-                self.cursor_column = start_column;
-                self.cursor_line = start_line;
-                self.selection = None;
-
-                true
+            if let Some(line) = self.lines.get_mut(min_line) {
+                line.drain((min_column - 1)..(max_column - 1));
             }
-            None => false,
+        } else {
+            // if there are multiple lines, we need to get the last line, remove selected elements;
+            // get the first line, remove selected elements; append last line to the first
+            // if there are lines between first and last, we need to remove them
+
+            let mut last_line = self.lines.remove(max_line);
+
+            let (last_line_col, first_line_col) = if end_line > start_line {
+                (end_column, start_column)
+            } else {
+                (start_column, end_column)
+            };
+
+            last_line.drain(0..(last_line_col - 1));
+
+            if let Some(first_line) = self.lines.get_mut(min_line) {
+                first_line.truncate(first_line_col - 1);
+                first_line.append(&mut last_line);
+            }
+
+            let lines_between = max_line - min_line - 1;
+            // it means that we have some lines we need to completely remove
+            if lines_between > 0 {
+                for i in 0..lines_between {
+                    self.lines.remove(max_line - i - 1);
+                }
+            }
         }
     }
 }
@@ -114,6 +125,7 @@ impl UIState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app_state::undo_redo::UndoRedo;
 
     #[test]
     fn handle_selection_correctly() {
@@ -181,6 +193,7 @@ mod tests {
 
     #[test]
     fn handles_selection_delete_correctly() {
+        let mut undo_redo = UndoRedo::new();
         let lines = vec![
             vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
             vec!['A', 'n', 'o', 't', 'h', 'e', 'r', ' ', 'l', 'i', 'n', 'e'],
@@ -196,7 +209,7 @@ mod tests {
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
 
-        ui_state.remove_previous_character();
+        ui_state.remove_previous_character(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 4);
         assert_eq!(ui_state.cursor_line, 1);
@@ -206,7 +219,7 @@ mod tests {
         ui_state.cursor_move_left(&KeyModifiers::SHIFT);
         ui_state.cursor_move_left(&KeyModifiers::SHIFT);
 
-        ui_state.remove_next_character();
+        ui_state.remove_next_character(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 2);
         assert_eq!(ui_state.cursor_line, 1);
@@ -218,7 +231,7 @@ mod tests {
         ui_state.cursor_move_right(&KeyModifiers::NONE);
         ui_state.cursor_move_down(&KeyModifiers::SHIFT);
 
-        ui_state.remove_next_character();
+        ui_state.remove_next_character(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 4);
         assert_eq!(ui_state.cursor_line, 2);
@@ -228,10 +241,10 @@ mod tests {
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
         ui_state.cursor_move_right(&KeyModifiers::SHIFT);
 
-        ui_state.insert_character('R');
-        ui_state.insert_character('O');
-        ui_state.insert_character('O');
-        ui_state.insert_character('T');
+        ui_state.insert_character('R', &mut undo_redo);
+        ui_state.insert_character('O', &mut undo_redo);
+        ui_state.insert_character('O', &mut undo_redo);
+        ui_state.insert_character('T', &mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 8);
         assert_eq!(ui_state.cursor_line, 2);
@@ -253,15 +266,15 @@ mod tests {
         ui_state.cursor_move_line_end(&KeyModifiers::NONE);
         ui_state.add_new_line();
 
-        ui_state.insert_character('S');
-        ui_state.insert_character('o');
-        ui_state.insert_character('m');
-        ui_state.insert_character('e');
-        ui_state.insert_character('t');
-        ui_state.insert_character('h');
-        ui_state.insert_character('i');
-        ui_state.insert_character('n');
-        ui_state.insert_character('g');
+        ui_state.insert_character('S', &mut undo_redo);
+        ui_state.insert_character('o', &mut undo_redo);
+        ui_state.insert_character('m', &mut undo_redo);
+        ui_state.insert_character('e', &mut undo_redo);
+        ui_state.insert_character('t', &mut undo_redo);
+        ui_state.insert_character('h', &mut undo_redo);
+        ui_state.insert_character('i', &mut undo_redo);
+        ui_state.insert_character('n', &mut undo_redo);
+        ui_state.insert_character('g', &mut undo_redo);
 
         assert_eq!(String::from_iter(&ui_state.lines[3]), "Something");
 
@@ -272,12 +285,12 @@ mod tests {
         ui_state.cursor_move_up(&KeyModifiers::SHIFT);
         ui_state.cursor_move_up(&KeyModifiers::SHIFT);
 
-        ui_state.remove_previous_character();
+        ui_state.remove_previous_character(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 8);
         assert_eq!(ui_state.cursor_line, 1);
 
-        ui_state.insert_character(' ');
+        ui_state.insert_character(' ', &mut undo_redo);
 
         assert_eq!(ui_state.lines.len(), 1);
         assert_eq!(String::from_iter(&ui_state.lines[0]), "H world ng");

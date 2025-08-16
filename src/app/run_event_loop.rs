@@ -26,7 +26,21 @@ pub(super) fn run(
                     KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                         app_state.ui_state.handle_copy();
                     }
-                    KeyCode::Char(character) => app_state.ui_state.insert_character(character),
+                    KeyCode::Char('z') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        app_state.undo_redo.undo_action(&mut app_state.ui_state);
+                    }
+                    KeyCode::Char('z')
+                        if key_event.modifiers.contains(KeyModifiers::CONTROL)
+                            && key_event.modifiers.contains(KeyModifiers::SHIFT) =>
+                    {
+                        app_state.undo_redo.redo_action(&mut app_state.ui_state);
+                    }
+                    KeyCode::Char('r') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        app_state.undo_redo.redo_action(&mut app_state.ui_state);
+                    }
+                    KeyCode::Char(character) => app_state
+                        .ui_state
+                        .insert_character(character, &mut app_state.undo_redo),
                     KeyCode::Home => app_state
                         .ui_state
                         .cursor_move_line_start(&key_event.modifiers),
@@ -37,15 +51,23 @@ pub(super) fn run(
                     KeyCode::Right => app_state.ui_state.cursor_move_right(&key_event.modifiers),
                     KeyCode::Down => app_state.ui_state.cursor_move_down(&key_event.modifiers),
                     KeyCode::Up => app_state.ui_state.cursor_move_up(&key_event.modifiers),
-                    KeyCode::Backspace => app_state.ui_state.remove_previous_character(),
-                    KeyCode::Delete => app_state.ui_state.remove_next_character(),
+                    KeyCode::Backspace => app_state
+                        .ui_state
+                        .remove_previous_character(&mut app_state.undo_redo),
+                    KeyCode::Delete => app_state
+                        .ui_state
+                        .remove_next_character(&mut app_state.undo_redo),
                     KeyCode::Enter => app_state.ui_state.add_new_line(),
                     KeyCode::BackTab => app_state.ui_state.handle_backtab_key(&app_state.config),
-                    KeyCode::Tab => app_state.ui_state.handle_tab_key(&app_state.config),
+                    KeyCode::Tab => app_state
+                        .ui_state
+                        .handle_tab_key(&app_state.config, &mut app_state.undo_redo),
                     _ => {}
                 }
             }
-            Event::Paste(data) => app_state.ui_state.handle_paste(data),
+            Event::Paste(data) => app_state
+                .ui_state
+                .handle_paste(data, &mut app_state.undo_redo),
             _ => {}
         }
     }
