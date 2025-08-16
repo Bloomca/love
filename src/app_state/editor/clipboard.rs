@@ -3,12 +3,19 @@ use crossterm::execute;
 use std::io;
 
 use crate::app_state::editor::UIState;
+use crate::app_state::undo_redo::{UndoAction, UndoRedo};
 
 impl UIState {
-    pub fn handle_paste(&mut self, data: String) {
+    pub fn handle_paste(&mut self, data: String, undo_redo: &mut UndoRedo) {
+        if data.is_empty() {
+            return;
+        }
+
         self.vertical_offset_target = 0;
 
         self.delete_selection();
+
+        let start_position = (self.cursor_line, self.cursor_column);
 
         // in my iTerm on macOS, newlines are replaced by `\r` by default
         // to be safe, we normalize all possible line endings into '\n'
@@ -68,6 +75,9 @@ impl UIState {
                 self.lines.insert(old_cursor_line - 1 + i, prefixed_line);
             }
         }
+
+        let end_position = (self.cursor_line, self.cursor_column);
+        undo_redo.add_undo_action(UndoAction::Paste(start_position, end_position));
     }
 
     pub fn handle_copy(&self) {

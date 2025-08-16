@@ -61,7 +61,9 @@ pub(super) fn run(
                     _ => {}
                 }
             }
-            Event::Paste(data) => app_state.ui_state.handle_paste(data),
+            Event::Paste(data) => app_state
+                .ui_state
+                .handle_paste(data, &mut app_state.undo_redo),
             _ => {}
         }
     }

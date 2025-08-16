@@ -54,59 +54,70 @@ impl UIState {
     }
 
     pub fn delete_selection(&mut self) -> bool {
-        match &self.selection {
-            Some(selection) => {
-                let (start_line, start_column) = selection.start;
-                let (end_line, end_column) = selection.end;
-                let min_line = start_line.min(end_line) - 1;
-                let max_line = start_line.max(end_line) - 1;
+        let Some(selection) = &self.selection else {
+            return false;
+        };
 
-                if min_line == max_line {
-                    // if the line is equal, we need to remove selected range
-                    let min_column = start_column.min(end_column);
-                    let max_column = start_column.max(end_column);
+        self.delete_range(selection.start, selection.end);
 
-                    if let Some(line) = self.lines.get_mut(min_line) {
-                        line.drain((min_column - 1)..(max_column - 1));
-                    }
-                } else {
-                    // if there are multiple lines, we need to get the last line, remove selected elements;
-                    // get the first line, remove selected elements; append last line to the first
-                    // if there are lines between first and last, we need to remove them
+        let Some(selection) = &self.selection else {
+            return false;
+        };
 
-                    let mut last_line = self.lines.remove(max_line);
+        let (start_line, start_column) = selection.get_first_position();
 
-                    let (last_line_col, first_line_col) = if end_line > start_line {
-                        (end_column, start_column)
-                    } else {
-                        (start_column, end_column)
-                    };
+        self.cursor_column = start_column;
+        self.cursor_line = start_line;
+        self.selection = None;
 
-                    last_line.drain(0..(last_line_col - 1));
+        true
+    }
 
-                    if let Some(first_line) = self.lines.get_mut(min_line) {
-                        first_line.truncate(first_line_col - 1);
-                        first_line.append(&mut last_line);
-                    }
+    /// Delete text between the range; please note that the cursor is not moved
+    /// so it is the responsibility of the caller to do so
+    pub fn delete_range(
+        &mut self,
+        (start_line, start_column): (usize, usize),
+        (end_line, end_column): (usize, usize),
+    ) {
+        let min_line = start_line.min(end_line) - 1;
+        let max_line = start_line.max(end_line) - 1;
 
-                    let lines_between = max_line - min_line - 1;
-                    // it means that we have some lines we need to completely remove
-                    if lines_between > 0 {
-                        for i in 0..lines_between {
-                            self.lines.remove(max_line - i - 1);
-                        }
-                    }
-                }
+        if min_line == max_line {
+            // if the line is equal, we need to remove selected range
+            let min_column = start_column.min(end_column);
+            let max_column = start_column.max(end_column);
 
-                let (start_line, start_column) = selection.get_first_position();
-
-                self.cursor_column = start_column;
-                self.cursor_line = start_line;
-                self.selection = None;
-
-                true
+            if let Some(line) = self.lines.get_mut(min_line) {
+                line.drain((min_column - 1)..(max_column - 1));
             }
-            None => false,
+        } else {
+            // if there are multiple lines, we need to get the last line, remove selected elements;
+            // get the first line, remove selected elements; append last line to the first
+            // if there are lines between first and last, we need to remove them
+
+            let mut last_line = self.lines.remove(max_line);
+
+            let (last_line_col, first_line_col) = if end_line > start_line {
+                (end_column, start_column)
+            } else {
+                (start_column, end_column)
+            };
+
+            last_line.drain(0..(last_line_col - 1));
+
+            if let Some(first_line) = self.lines.get_mut(min_line) {
+                first_line.truncate(first_line_col - 1);
+                first_line.append(&mut last_line);
+            }
+
+            let lines_between = max_line - min_line - 1;
+            // it means that we have some lines we need to completely remove
+            if lines_between > 0 {
+                for i in 0..lines_between {
+                    self.lines.remove(max_line - i - 1);
+                }
+            }
         }
     }
 }

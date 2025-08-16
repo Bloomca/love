@@ -15,7 +15,8 @@ struct RemoveAction {
 }
 
 struct PasteAction {
-    // pass
+    start: (usize, usize),
+    end: (usize, usize),
 }
 
 enum Action {
@@ -27,7 +28,7 @@ enum Action {
 pub enum UndoAction {
     /// character, starting position, ending position
     AddCharacter(char, (usize, usize), (usize, usize)),
-    Paste,
+    Paste((usize, usize), (usize, usize)),
     RemoveCharacter,
 }
 
@@ -126,7 +127,22 @@ impl UndoRedo {
                     }
                 }
             }
-            UndoAction::Paste => todo!(),
+            UndoAction::Paste(start, end) => {
+                if let Some(buffer) = &self.buffer {
+                    match buffer {
+                        Buffer::AddCharacter(_) => {
+                            self.commit_buffer();
+                        }
+                        Buffer::RemoveCharacter(_) => {
+                            self.commit_buffer();
+                        }
+                    }
+                }
+
+                self.buffer = None;
+                self.undo_actions
+                    .push(Action::Paste(PasteAction { start, end }))
+            }
             UndoAction::RemoveCharacter => todo!(),
         }
     }
@@ -186,7 +202,11 @@ impl UndoRedo {
                 }
             }
             Action::Remove(remove_action) => todo!(),
-            Action::Paste(paste_action) => todo!(),
+            Action::Paste(paste_action) => {
+                editor_state.delete_range(paste_action.start, paste_action.end);
+                editor_state.cursor_line = paste_action.start.0;
+                editor_state.cursor_column = paste_action.start.1;
+            }
         }
 
         self.redo_actions.push(action);
