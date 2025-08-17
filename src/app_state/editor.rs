@@ -129,4 +129,14 @@ impl UIState {
             }
         }
     }
+
+    pub fn set_selection(
+        &mut self,
+        (start_line, start_col): (usize, usize),
+        (end_line, end_column): (usize, usize),
+    ) {
+        let mut selection = Selection::new(start_line, start_col);
+        selection.set_end(end_line, end_column);
+        self.selection = Some(selection);
+    }
 }

@@ -7,7 +7,7 @@ impl UIState {
         self.vertical_offset_target = 0;
 
         // after deleting selection, we need to insert the character normally
-        self.delete_selection();
+        let deleted_selection = self.delete_selection();
 
         let result = self.lines.get_mut(self.cursor_line - 1);
 
@@ -20,7 +20,12 @@ impl UIState {
                     // manually set to have no modifiers, so the newly inserted character is not selected
                     self.cursor_move_right(&KeyModifiers::NONE);
                     let end = (self.cursor_line, self.cursor_column);
-                    undo_redo.add_undo_action(UndoAction::AddCharacter(character, start, end));
+                    undo_redo.add_undo_action(UndoAction::AddCharacter(
+                        character,
+                        start,
+                        end,
+                        deleted_selection,
+                    ));
                 }
             }
             None => {

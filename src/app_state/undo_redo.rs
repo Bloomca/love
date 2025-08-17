@@ -4,10 +4,17 @@ use crate::app_state::editor::UIState;
 
 const MAX_BUFFER_DEBOUNCE_TIME_MS: u128 = 250;
 
+pub struct UndoSelection {
+    pub text: String,
+    pub start: (usize, usize),
+    pub end: (usize, usize),
+}
+
 struct AddAction {
     start: (usize, usize),
     end: (usize, usize),
     chars: Vec<char>,
+    selection: Option<UndoSelection>,
 }
 
 struct RemoveBackAction {
@@ -36,8 +43,8 @@ enum Action {
 }
 
 pub enum UndoAction {
-    /// character, starting position, ending position
-    AddCharacter(char, (usize, usize), (usize, usize)),
+    /// character, starting position, ending position, removed selection
+    AddCharacter(char, (usize, usize), (usize, usize), Option<UndoSelection>),
     Paste(String, (usize, usize), (usize, usize)),
     RemoveCharacter(char, (usize, usize), (usize, usize), RemoveBufferType),
 }
@@ -47,15 +54,17 @@ struct AddCharacterBuffer {
     end_position: (usize, usize),
     chars: Vec<char>,
     last_action_timestamp: SystemTime,
+    selection: Option<UndoSelection>,
 }
 
 impl AddCharacterBuffer {
-    fn new(line_num: usize, line_column: usize) -> Self {
+    fn new(line_num: usize, line_column: usize, selection: Option<UndoSelection>) -> Self {
         AddCharacterBuffer {
             start_position: (line_num, line_column),
             end_position: (line_num, line_column),
             chars: vec![],
             last_action_timestamp: SystemTime::now(),
+            selection,
         }
     }
 
@@ -141,34 +150,41 @@ impl UndoRedo {
         // if we perform any action, all redo actions are immediately invalidated
         self.redo_actions.clear();
         match action {
-            UndoAction::AddCharacter(ch, (start_line, start_col), (end_line, end_col)) => {
-                match &mut self.buffer {
-                    Some(buffer) => match buffer {
-                        Buffer::AddCharacter(add_character_buffer) => {
-                            if add_character_buffer.should_commit() {
-                                self.commit_buffer();
-                                let mut add_buffer: AddCharacterBuffer =
-                                    AddCharacterBuffer::new(start_line, start_col);
-                                add_buffer.add_char(ch, end_line, end_col);
-                                self.buffer = Some(Buffer::AddCharacter(add_buffer));
-                            } else {
-                                add_character_buffer.add_char(ch, end_line, end_col);
-                            }
-                        }
-                        Buffer::RemoveCharacter(_) => {
+            UndoAction::AddCharacter(
+                ch,
+                (start_line, start_col),
+                (end_line, end_col),
+                removed_selection,
+            ) => match &mut self.buffer {
+                Some(buffer) => match buffer {
+                    Buffer::AddCharacter(add_character_buffer) => {
+                        // if we somehow receive new selection while the buffer is live,
+                        // we simply commit the buffer as it would be too hard to restore
+                        if removed_selection.is_some() || add_character_buffer.should_commit() {
                             self.commit_buffer();
-                            let mut add_buffer = AddCharacterBuffer::new(start_line, start_col);
+                            let mut add_buffer: AddCharacterBuffer =
+                                AddCharacterBuffer::new(start_line, start_col, removed_selection);
                             add_buffer.add_char(ch, end_line, end_col);
                             self.buffer = Some(Buffer::AddCharacter(add_buffer));
+                        } else {
+                            add_character_buffer.add_char(ch, end_line, end_col);
                         }
-                    },
-                    None => {
-                        let mut add_buffer = AddCharacterBuffer::new(start_line, start_col);
-                        add_buffer.add_char(ch, end_line, end_col);
-                        self.buffer = Some(Buffer::AddCharacter(add_buffer))
                     }
+                    Buffer::RemoveCharacter(_) => {
+                        self.commit_buffer();
+                        let mut add_buffer =
+                            AddCharacterBuffer::new(start_line, start_col, removed_selection);
+                        add_buffer.add_char(ch, end_line, end_col);
+                        self.buffer = Some(Buffer::AddCharacter(add_buffer));
+                    }
+                },
+                None => {
+                    let mut add_buffer =
+                        AddCharacterBuffer::new(start_line, start_col, removed_selection);
+                    add_buffer.add_char(ch, end_line, end_col);
+                    self.buffer = Some(Buffer::AddCharacter(add_buffer))
                 }
-            }
+            },
             UndoAction::Paste(data, start, end) => {
                 if let Some(buffer) = &self.buffer {
                     match buffer {
@@ -231,6 +247,7 @@ impl UndoRedo {
                         start: add_character_buffer.start_position,
                         end: add_character_buffer.end_position,
                         chars: add_character_buffer.chars,
+                        selection: add_character_buffer.selection,
                     };
 
                     self.undo_actions.push(Action::Add(action));
@@ -291,6 +308,8 @@ impl UndoRedo {
                 }
 
                 editor_state.delete_range(add_action.start, add_action.end);
+
+                self.set_selection_back(&add_action.selection, editor_state);
             }
             Action::Paste(paste_action) => {
                 editor_state.delete_range(paste_action.start, paste_action.end);
@@ -322,6 +341,8 @@ impl UndoRedo {
             Action::Add(add_action) => {
                 let (start_line, start_column) = add_action.start;
 
+                self.remove_selection(&add_action.selection, editor_state);
+
                 // we need to put the cursor where new data started so that
                 // it is inserted into the correct place; `insert_text` fn
                 // will move the cursor automatically
@@ -332,6 +353,8 @@ impl UndoRedo {
 
                 // we handle all the whitespaces when adding newlines
                 editor_state.insert_text(data, false);
+
+                // self.insert_selection_back(&add_action.selection, editor_state);
             }
             Action::Paste(paste_action) => {
                 // put the cursor at the start to insert correctly
@@ -353,5 +376,40 @@ impl UndoRedo {
         }
 
         self.undo_actions.push(action);
+    }
+
+    fn set_selection_back(
+        &self,
+        selection_option: &Option<UndoSelection>,
+        editor_state: &mut UIState,
+    ) {
+        let Some(selection) = &selection_option else {
+            return;
+        };
+        editor_state.insert_text(selection.text.clone(), false);
+        editor_state.set_selection(selection.start, selection.end);
+
+        let (end_line, end_column) = selection.end;
+        editor_state.cursor_line = end_line;
+        editor_state.cursor_column = end_column;
+    }
+
+    fn remove_selection(
+        &self,
+        selection_option: &Option<UndoSelection>,
+        editor_state: &mut UIState,
+    ) {
+        let Some(selection) = &selection_option else {
+            return;
+        };
+
+        editor_state.set_selection(selection.start, selection.end);
+        let (end_line, end_column) = selection.end;
+        editor_state.cursor_line = end_line;
+        editor_state.cursor_column = end_column;
+
+        // we don't save the returned `Option<UndoSelection>` as it should
+        // be exactly the same as the current one
+        editor_state.delete_selection();
     }
 }

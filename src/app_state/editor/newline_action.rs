@@ -1,12 +1,12 @@
 use crate::app_state::editor::UIState;
-use crate::app_state::undo_redo::{UndoAction, UndoRedo};
+use crate::app_state::undo_redo::{UndoAction, UndoRedo, UndoSelection};
 
 impl UIState {
     pub fn add_new_line(&mut self, undo_redo: &mut UndoRedo) {
         self.vertical_offset_target = 0;
 
         // after deleting the selection, we need to insert the newline as usual
-        self.delete_selection();
+        let removed_selection = self.delete_selection();
 
         let start = (self.cursor_line, self.cursor_column);
 
@@ -25,7 +25,7 @@ impl UIState {
 
             self.handle_cursor_scrolling();
 
-            self.add_newline_undo(undo_redo, whitespaces, start);
+            self.add_newline_undo(undo_redo, whitespaces, start, removed_selection);
         } else {
             match self.lines.get_mut(self.cursor_line - 1) {
                 Some(line) => {
@@ -40,7 +40,7 @@ impl UIState {
 
                     self.handle_cursor_scrolling();
 
-                    self.add_newline_undo(undo_redo, whitespaces, start);
+                    self.add_newline_undo(undo_redo, whitespaces, start, removed_selection);
                 }
                 None => {
                     // ???
@@ -54,9 +54,15 @@ impl UIState {
         undo_redo: &mut UndoRedo,
         whitespaces: usize,
         start: (usize, usize),
+        removed_selection: Option<UndoSelection>,
     ) {
         // first, we insert the newline
-        undo_redo.add_undo_action(UndoAction::AddCharacter('\n', start, (self.cursor_line, 1)));
+        undo_redo.add_undo_action(UndoAction::AddCharacter(
+            '\n',
+            start,
+            (self.cursor_line, 1),
+            removed_selection,
+        ));
 
         // after that, we need to insert whitespaces individually to reuse the same API
         if whitespaces > 0 {
@@ -66,6 +72,7 @@ impl UIState {
                     start,
                     // 1 because column is counted from 1, 1 because `i` starts from 0
                     (self.cursor_line, i + 2),
+                    None,
                 ));
             }
         }

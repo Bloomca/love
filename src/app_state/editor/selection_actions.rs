@@ -3,6 +3,7 @@ use crate::app_state::editor::UIState;
 use crossterm::event::KeyModifiers;
 
 use crate::app_state::selection::Selection;
+use crate::app_state::undo_redo::UndoSelection;
 
 impl UIState {
     /// Start a new selection if necessary, clear existing one if necessary or do nothing if one exists
@@ -53,15 +54,15 @@ impl UIState {
         }
     }
 
-    pub fn delete_selection(&mut self) -> bool {
+    pub fn delete_selection(&mut self) -> Option<UndoSelection> {
         let Some(selection) = &self.selection else {
-            return false;
+            return None;
         };
 
-        self.delete_range(selection.start, selection.end);
+        let result = self.delete_range(selection.start, selection.end);
 
         let Some(selection) = &self.selection else {
-            return false;
+            return None;
         };
 
         let (start_line, start_column) = selection.get_first_position();
@@ -70,16 +71,18 @@ impl UIState {
         self.cursor_line = start_line;
         self.selection = None;
 
-        true
+        result
     }
 
     /// Delete text between the range; please note that the cursor is not moved
     /// so it is the responsibility of the caller to do so
     pub fn delete_range(
         &mut self,
-        (start_line, start_column): (usize, usize),
-        (end_line, end_column): (usize, usize),
-    ) {
+        start: (usize, usize),
+        end: (usize, usize),
+    ) -> Option<UndoSelection> {
+        let (start_line, start_column) = start;
+        let (end_line, end_column) = end;
         let min_line = start_line.min(end_line) - 1;
         let max_line = start_line.max(end_line) - 1;
 
@@ -88,13 +91,17 @@ impl UIState {
             let min_column = start_column.min(end_column);
             let max_column = start_column.max(end_column);
 
-            if let Some(line) = self.lines.get_mut(min_line) {
-                line.drain((min_column - 1)..(max_column - 1));
-            }
+            self.lines.get_mut(min_line).map(|line| UndoSelection {
+                text: line.drain((min_column - 1)..(max_column - 1)).collect(),
+                start,
+                end,
+            })
         } else {
             // if there are multiple lines, we need to get the last line, remove selected elements;
             // get the first line, remove selected elements; append last line to the first
             // if there are lines between first and last, we need to remove them
+
+            let mut result = String::new();
 
             let mut last_line = self.lines.remove(max_line);
 
@@ -104,20 +111,30 @@ impl UIState {
                 (start_column, end_column)
             };
 
-            last_line.drain(0..(last_line_col - 1));
+            let last_line_data: Vec<char> = last_line.drain(0..(last_line_col - 1)).collect();
 
-            if let Some(first_line) = self.lines.get_mut(min_line) {
-                first_line.truncate(first_line_col - 1);
-                first_line.append(&mut last_line);
-            }
+            let first_line = self.lines.get_mut(min_line)?;
+
+            result.extend(first_line.drain((first_line_col - 1)..));
+            first_line.append(&mut last_line);
 
             let lines_between = max_line - min_line - 1;
             // it means that we have some lines we need to completely remove
             if lines_between > 0 {
                 for i in 0..lines_between {
-                    self.lines.remove(max_line - i - 1);
+                    result.push('\n');
+                    result.extend(self.lines.remove(max_line - i - 1));
                 }
             }
+
+            result.push('\n');
+            result.extend(last_line_data);
+
+            Some(UndoSelection {
+                text: result,
+                start,
+                end,
+            })
         }
     }
 }
