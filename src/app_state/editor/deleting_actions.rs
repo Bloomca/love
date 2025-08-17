@@ -7,7 +7,12 @@ impl UIState {
         self.vertical_offset_target = 0;
 
         // if we successfully deleted the selection, we don't need to do anything else
-        if self.delete_selection().is_some() {
+        if let Some(removed_selection) = self.delete_selection() {
+            undo_redo.add_undo_action(UndoAction::RemoveSelection(
+                removed_selection,
+                (self.cursor_line, self.cursor_column),
+                RemoveBufferType::Backspace,
+            ));
             return;
         }
 
@@ -84,7 +89,12 @@ impl UIState {
         self.vertical_offset_target = 0;
 
         // if we successfully deleted the selection, we don't need to do anything else
-        if self.delete_selection().is_some() {
+        if let Some(removed_selection) = self.delete_selection() {
+            undo_redo.add_undo_action(UndoAction::RemoveSelection(
+                removed_selection,
+                (self.cursor_line, self.cursor_column),
+                RemoveBufferType::Delete,
+            ));
             return;
         }
 
