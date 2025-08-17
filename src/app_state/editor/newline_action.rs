@@ -1,11 +1,14 @@
 use crate::app_state::editor::UIState;
+use crate::app_state::undo_redo::{UndoAction, UndoRedo};
 
 impl UIState {
-    pub fn add_new_line(&mut self) {
+    pub fn add_new_line(&mut self, undo_redo: &mut UndoRedo) {
         self.vertical_offset_target = 0;
 
         // after deleting the selection, we need to insert the newline as usual
         self.delete_selection();
+
+        let start = (self.cursor_line, self.cursor_column);
 
         let current_line_len = self.get_line_len(self.cursor_line - 1);
 
@@ -21,6 +24,8 @@ impl UIState {
             self.cursor_line += 1;
 
             self.handle_cursor_scrolling();
+
+            self.add_newline_undo(undo_redo, whitespaces, start);
         } else {
             match self.lines.get_mut(self.cursor_line - 1) {
                 Some(line) => {
@@ -34,10 +39,34 @@ impl UIState {
                     self.cursor_column = 1 + whitespaces;
 
                     self.handle_cursor_scrolling();
+
+                    self.add_newline_undo(undo_redo, whitespaces, start);
                 }
                 None => {
                     // ???
                 }
+            }
+        }
+    }
+
+    fn add_newline_undo(
+        &self,
+        undo_redo: &mut UndoRedo,
+        whitespaces: usize,
+        start: (usize, usize),
+    ) {
+        // first, we insert the newline
+        undo_redo.add_undo_action(UndoAction::AddCharacter('\n', start, (self.cursor_line, 1)));
+
+        // after that, we need to insert whitespaces individually to reuse the same API
+        if whitespaces > 0 {
+            for i in 0..whitespaces {
+                undo_redo.add_undo_action(UndoAction::AddCharacter(
+                    ' ',
+                    start,
+                    // 1 because column is counted from 1, 1 because `i` starts from 0
+                    (self.cursor_line, i + 2),
+                ));
             }
         }
     }
@@ -47,11 +76,11 @@ impl UIState {
 mod tests {
     use super::*;
     use crate::app_state::app::Config;
-    use crate::app_state::undo_redo::UndoRedo;
     use crossterm::event::KeyModifiers;
 
     #[test]
     fn adds_new_line_correctly() {
+        let mut undo_redo = UndoRedo::new();
         let lines = vec![
             vec!['H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'],
             vec![],
@@ -64,7 +93,7 @@ mod tests {
         ui_state.cursor_move_right(&KeyModifiers::NONE);
         ui_state.cursor_move_right(&KeyModifiers::NONE);
 
-        ui_state.add_new_line();
+        ui_state.add_new_line(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 2);
@@ -73,7 +102,7 @@ mod tests {
         assert_eq!(String::from_iter(&ui_state.lines[1]), "lo world!");
 
         ui_state.cursor_move_line_end(&KeyModifiers::NONE);
-        ui_state.add_new_line();
+        ui_state.add_new_line(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 3);
@@ -102,7 +131,7 @@ mod tests {
         assert_eq!(String::from_iter(&ui_state.lines[0]), "    Hello world!");
 
         ui_state.cursor_move_line_end(&KeyModifiers::NONE);
-        ui_state.add_new_line();
+        ui_state.add_new_line(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 5);
         assert_eq!(ui_state.cursor_line, 2);

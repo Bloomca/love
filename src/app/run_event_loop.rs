@@ -57,7 +57,7 @@ pub(super) fn run(
                     KeyCode::Delete => app_state
                         .ui_state
                         .remove_next_character(&mut app_state.undo_redo),
-                    KeyCode::Enter => app_state.ui_state.add_new_line(),
+                    KeyCode::Enter => app_state.ui_state.add_new_line(&mut app_state.undo_redo),
                     KeyCode::BackTab => app_state.ui_state.handle_backtab_key(&app_state.config),
                     KeyCode::Tab => app_state
                         .ui_state

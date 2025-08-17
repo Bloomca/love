@@ -285,18 +285,12 @@ impl UndoRedo {
                     return;
                 }
 
-                if start_line == end_line {
-                    if end_column <= start_column {
-                        // SHOULD NEVER HAPPEN
-                        return;
-                    }
-
-                    if let Some(line) = editor_state.lines.get_mut(start_line - 1) {
-                        line.drain((start_column - 1)..(end_column - 1));
-                    }
-                } else {
-                    //
+                if start_line == end_line && end_column <= start_column {
+                    // SHOULD NEVER HAPPEN
+                    return;
                 }
+
+                editor_state.delete_range(add_action.start, add_action.end);
             }
             Action::Paste(paste_action) => {
                 editor_state.delete_range(paste_action.start, paste_action.end);
@@ -327,20 +321,17 @@ impl UndoRedo {
         match &action {
             Action::Add(add_action) => {
                 let (start_line, start_column) = add_action.start;
-                let (end_line, end_column) = add_action.end;
 
-                if start_line == end_line
-                    && let Some(line) = editor_state.lines.get_mut(start_line - 1)
-                {
-                    add_action.chars.iter().enumerate().for_each(|(i, char)| {
-                        line.insert(start_column - 1 + i, *char);
-                    });
-                }
+                // we need to put the cursor where new data started so that
+                // it is inserted into the correct place; `insert_text` fn
+                // will move the cursor automatically
+                editor_state.cursor_line = start_line;
+                editor_state.cursor_column = start_column;
 
-                // TODO: handle multiline
+                let data: String = add_action.chars.iter().collect();
 
-                editor_state.cursor_line = end_line;
-                editor_state.cursor_column = end_column;
+                // we handle all the whitespaces when adding newlines
+                editor_state.insert_text(data, false);
             }
             Action::Paste(paste_action) => {
                 // put the cursor at the start to insert correctly
