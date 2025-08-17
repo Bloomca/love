@@ -254,7 +254,7 @@ mod tests {
         ui_state.cursor_move_left(&KeyModifiers::SHIFT);
         ui_state.cursor_move_left(&KeyModifiers::SHIFT);
 
-        ui_state.add_new_line();
+        ui_state.add_new_line(&mut undo_redo);
 
         assert_eq!(ui_state.cursor_column, 1);
         assert_eq!(ui_state.cursor_line, 3);
@@ -264,7 +264,7 @@ mod tests {
         assert_eq!(String::from_iter(&ui_state.lines[0]), "H world!");
 
         ui_state.cursor_move_line_end(&KeyModifiers::NONE);
-        ui_state.add_new_line();
+        ui_state.add_new_line(&mut undo_redo);
 
         ui_state.insert_character('S', &mut undo_redo);
         ui_state.insert_character('o', &mut undo_redo);
