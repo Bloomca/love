@@ -21,12 +21,14 @@ struct RemoveBackAction {
     data: String,
     start: (usize, usize),
     end: (usize, usize),
+    selection: Option<UndoSelection>,
 }
 
 struct RemoveForwardAction {
     data: String,
     start: (usize, usize),
     end: (usize, usize),
+    selection: Option<UndoSelection>,
 }
 
 struct PasteAction {
@@ -53,6 +55,7 @@ pub enum UndoAction {
         Option<UndoSelection>,
     ),
     RemoveCharacter(char, (usize, usize), (usize, usize), RemoveBufferType),
+    RemoveSelection(UndoSelection, (usize, usize), RemoveBufferType),
 }
 
 struct AddCharacterBuffer {
@@ -101,16 +104,23 @@ struct RemoveCharacterBuffer {
     chars: Vec<char>,
     last_action_timestamp: SystemTime,
     remove_type: RemoveBufferType,
+    selection: Option<UndoSelection>,
 }
 
 impl RemoveCharacterBuffer {
-    fn new(line_num: usize, line_column: usize, remove_type: RemoveBufferType) -> Self {
+    fn new(
+        line_num: usize,
+        line_column: usize,
+        remove_type: RemoveBufferType,
+        selection: Option<UndoSelection>,
+    ) -> Self {
         RemoveCharacterBuffer {
             start_position: (line_num, line_column),
             end_position: (line_num, line_column),
             chars: vec![],
             last_action_timestamp: SystemTime::now(),
             remove_type,
+            selection,
         }
     }
 
@@ -221,7 +231,7 @@ impl UndoRedo {
                     Buffer::AddCharacter(_) => {
                         self.commit_buffer();
                         let mut remove_buffer =
-                            RemoveCharacterBuffer::new(start_line, start_col, remove_type);
+                            RemoveCharacterBuffer::new(start_line, start_col, remove_type, None);
                         remove_buffer.remove_char(ch, end_line, end_col);
                         self.buffer = Some(Buffer::RemoveCharacter(remove_buffer));
                     }
@@ -231,7 +241,12 @@ impl UndoRedo {
                         {
                             self.commit_buffer();
                             let mut remove_buffer: RemoveCharacterBuffer =
-                                RemoveCharacterBuffer::new(start_line, start_col, remove_type);
+                                RemoveCharacterBuffer::new(
+                                    start_line,
+                                    start_col,
+                                    remove_type,
+                                    None,
+                                );
                             remove_buffer.remove_char(ch, end_line, end_col);
                             self.buffer = Some(Buffer::RemoveCharacter(remove_buffer));
                         } else {
@@ -241,11 +256,20 @@ impl UndoRedo {
                 },
                 None => {
                     let mut remove_ch_buffer =
-                        RemoveCharacterBuffer::new(start_line, start_col, remove_type);
+                        RemoveCharacterBuffer::new(start_line, start_col, remove_type, None);
                     remove_ch_buffer.remove_char(ch, end_line, end_col);
                     self.buffer = Some(Buffer::RemoveCharacter(remove_ch_buffer))
                 }
             },
+            UndoAction::RemoveSelection(undo_selection, position, remove_buffer_type) => {
+                self.commit_buffer();
+                self.buffer = Some(Buffer::RemoveCharacter(RemoveCharacterBuffer::new(
+                    position.0,
+                    position.1,
+                    remove_buffer_type,
+                    Some(undo_selection),
+                )));
+            }
         }
     }
 
@@ -270,6 +294,7 @@ impl UndoRedo {
                                 data,
                                 start: remove_character_buffer.start_position,
                                 end: remove_character_buffer.end_position,
+                                selection: remove_character_buffer.selection,
                             };
 
                             self.undo_actions.push(Action::RemoveBack(action));
@@ -280,6 +305,7 @@ impl UndoRedo {
                                 data,
                                 start: remove_character_buffer.start_position,
                                 end: remove_character_buffer.end_position,
+                                selection: remove_character_buffer.selection,
                             };
 
                             self.undo_actions.push(Action::RemoveForward(action));
@@ -331,6 +357,8 @@ impl UndoRedo {
             Action::RemoveBack(remove_back_action) => {
                 // we should prepend all deleted whitespaces
                 editor_state.insert_text(remove_back_action.data.clone(), false);
+
+                self.insert_selection_back(&remove_back_action.selection, editor_state);
             }
             Action::RemoveForward(remove_forward_action) => {
                 editor_state.insert_text(remove_forward_action.data.clone(), false);
@@ -338,6 +366,8 @@ impl UndoRedo {
                 // before the user pressed delete
                 editor_state.cursor_line = remove_forward_action.start.0;
                 editor_state.cursor_column = remove_forward_action.start.1;
+
+                self.insert_selection_back(&remove_forward_action.selection, editor_state);
             }
         }
 
@@ -378,11 +408,13 @@ impl UndoRedo {
                 editor_state.insert_text(paste_action.data.clone(), true);
             }
             Action::RemoveBack(remove_back_action) => {
+                self.remove_selection(&remove_back_action.selection, editor_state);
                 editor_state.delete_range(remove_back_action.end, remove_back_action.start);
                 editor_state.cursor_line = remove_back_action.end.0;
                 editor_state.cursor_column = remove_back_action.end.1;
             }
             Action::RemoveForward(remove_forward_action) => {
+                self.remove_selection(&remove_forward_action.selection, editor_state);
                 editor_state.delete_range(remove_forward_action.start, remove_forward_action.end);
             }
         }
