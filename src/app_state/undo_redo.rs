@@ -33,6 +33,7 @@ struct PasteAction {
     data: String,
     start: (usize, usize),
     end: (usize, usize),
+    selection: Option<UndoSelection>,
 }
 
 enum Action {
@@ -45,7 +46,12 @@ enum Action {
 pub enum UndoAction {
     /// character, starting position, ending position, removed selection
     AddCharacter(char, (usize, usize), (usize, usize), Option<UndoSelection>),
-    Paste(String, (usize, usize), (usize, usize)),
+    Paste(
+        String,
+        (usize, usize),
+        (usize, usize),
+        Option<UndoSelection>,
+    ),
     RemoveCharacter(char, (usize, usize), (usize, usize), RemoveBufferType),
 }
 
@@ -185,7 +191,7 @@ impl UndoRedo {
                     self.buffer = Some(Buffer::AddCharacter(add_buffer))
                 }
             },
-            UndoAction::Paste(data, start, end) => {
+            UndoAction::Paste(data, start, end, selection) => {
                 if let Some(buffer) = &self.buffer {
                     match buffer {
                         Buffer::AddCharacter(_) => {
@@ -198,8 +204,12 @@ impl UndoRedo {
                 }
 
                 self.buffer = None;
-                self.undo_actions
-                    .push(Action::Paste(PasteAction { data, start, end }))
+                self.undo_actions.push(Action::Paste(PasteAction {
+                    data,
+                    start,
+                    end,
+                    selection,
+                }))
             }
             UndoAction::RemoveCharacter(
                 ch,
@@ -309,12 +319,14 @@ impl UndoRedo {
 
                 editor_state.delete_range(add_action.start, add_action.end);
 
-                self.set_selection_back(&add_action.selection, editor_state);
+                self.insert_selection_back(&add_action.selection, editor_state);
             }
             Action::Paste(paste_action) => {
                 editor_state.delete_range(paste_action.start, paste_action.end);
                 editor_state.cursor_line = paste_action.start.0;
                 editor_state.cursor_column = paste_action.start.1;
+
+                self.insert_selection_back(&paste_action.selection, editor_state);
             }
             Action::RemoveBack(remove_back_action) => {
                 // we should prepend all deleted whitespaces
@@ -339,15 +351,13 @@ impl UndoRedo {
 
         match &action {
             Action::Add(add_action) => {
-                let (start_line, start_column) = add_action.start;
-
                 self.remove_selection(&add_action.selection, editor_state);
 
                 // we need to put the cursor where new data started so that
                 // it is inserted into the correct place; `insert_text` fn
                 // will move the cursor automatically
-                editor_state.cursor_line = start_line;
-                editor_state.cursor_column = start_column;
+                editor_state.cursor_line = add_action.start.0;
+                editor_state.cursor_column = add_action.start.1;
 
                 let data: String = add_action.chars.iter().collect();
 
@@ -357,6 +367,8 @@ impl UndoRedo {
                 // self.insert_selection_back(&add_action.selection, editor_state);
             }
             Action::Paste(paste_action) => {
+                self.remove_selection(&paste_action.selection, editor_state);
+
                 // put the cursor at the start to insert correctly
                 editor_state.cursor_line = paste_action.start.0;
                 editor_state.cursor_column = paste_action.start.1;
@@ -378,7 +390,7 @@ impl UndoRedo {
         self.undo_actions.push(action);
     }
 
-    fn set_selection_back(
+    fn insert_selection_back(
         &self,
         selection_option: &Option<UndoSelection>,
         editor_state: &mut UIState,
