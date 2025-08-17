@@ -91,15 +91,11 @@ impl UIState {
             let min_column = start_column.min(end_column);
             let max_column = start_column.max(end_column);
 
-            if let Some(line) = self.lines.get_mut(min_line) {
-                Some(UndoSelection {
-                    text: line.drain((min_column - 1)..(max_column - 1)).collect(),
-                    start,
-                    end,
-                })
-            } else {
-                None
-            }
+            self.lines.get_mut(min_line).map(|line| UndoSelection {
+                text: line.drain((min_column - 1)..(max_column - 1)).collect(),
+                start,
+                end,
+            })
         } else {
             // if there are multiple lines, we need to get the last line, remove selected elements;
             // get the first line, remove selected elements; append last line to the first
@@ -117,9 +113,7 @@ impl UIState {
 
             let last_line_data: Vec<char> = last_line.drain(0..(last_line_col - 1)).collect();
 
-            let Some(first_line) = self.lines.get_mut(min_line) else {
-                return None;
-            };
+            let first_line = self.lines.get_mut(min_line)?;
 
             result.extend(first_line.drain((first_line_col - 1)..));
             first_line.append(&mut last_line);
