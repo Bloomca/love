@@ -13,7 +13,7 @@ impl UIState {
 
         self.vertical_offset_target = 0;
 
-        self.delete_selection();
+        let removed_selection = self.delete_selection();
 
         let start_position = (self.cursor_line, self.cursor_column);
 
@@ -23,7 +23,12 @@ impl UIState {
         self.insert_text(data, true);
 
         let end_position = (self.cursor_line, self.cursor_column);
-        undo_redo.add_undo_action(UndoAction::Paste(cloned_data, start_position, end_position));
+        undo_redo.add_undo_action(UndoAction::Paste(
+            cloned_data,
+            start_position,
+            end_position,
+            removed_selection,
+        ));
     }
 
     /// insert text at the current cursor position. It WILL move the cursor to the end
