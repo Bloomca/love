@@ -7,7 +7,7 @@ impl UIState {
         self.vertical_offset_target = 0;
 
         // if we successfully deleted the selection, we don't need to do anything else
-        if self.delete_selection() {
+        if self.delete_selection().is_some() {
             return;
         }
 
@@ -84,7 +84,7 @@ impl UIState {
         self.vertical_offset_target = 0;
 
         // if we successfully deleted the selection, we don't need to do anything else
-        if self.delete_selection() {
+        if self.delete_selection().is_some() {
             return;
         }
 
